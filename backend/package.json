@@ -1,0 +1,21 @@
+{
+  "name": "polylingo-proxy",
+  "version": "1.0.0",
+  "description": "CORS Proxy for PolyLingo - ZDF News Fetcher",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
