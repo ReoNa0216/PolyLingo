@@ -2501,14 +2501,27 @@ ${chunk.substring(0, 8000)}
         const title = item.querySelector('title')?.textContent || '';
         const link = item.querySelector('link')?.textContent || '';
         const description = item.querySelector('description')?.textContent || '';
-        const pubDate = item.querySelector('pubDate')?.textContent || '';
+        // 朝日 RSS 使用 dc:date 而不是 pubDate
+        let pubDate = item.querySelector('pubDate')?.textContent || '';
+        if (!pubDate) {
+          // 尝试获取 dc:date (需要处理命名空间)
+          const dateEl = item.getElementsByTagNameNS('http://purl.org/dc/elements/1.1/', 'date')[0];
+          pubDate = dateEl?.textContent || '';
+        }
         
         if (link && !this.fetchedAsahiFeeds.includes(link)) {
           articles.push({ title, link, description, pubDate });
         }
       });
       
-      articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+      // 按日期排序，处理无效日期的情况
+      articles.sort((a, b) => {
+        const dateA = new Date(a.pubDate);
+        const dateB = new Date(b.pubDate);
+        if (isNaN(dateA)) return 1;
+        if (isNaN(dateB)) return -1;
+        return dateB - dateA;
+      });
       
       if (articles.length === 0) {
         if (this.fetchedAsahiFeeds.length > 50) {
@@ -2537,8 +2550,14 @@ ${chunk.substring(0, 8000)}
       const articleData = await articleRes.json();
       
       if (articleData.content) {
-        const pubDate = new Date(selectedArticle.pubDate);
-        const dateStr = pubDate.toLocaleDateString('ja-JP');
+        // 处理日期 - 朝日 RSS 使用 dc:date 格式
+        let dateStr = '日期未知';
+        if (selectedArticle.pubDate) {
+          const pubDate = new Date(selectedArticle.pubDate);
+          if (!isNaN(pubDate)) {
+            dateStr = pubDate.toLocaleDateString('ja-JP');
+          }
+        }
         
         this.asahiCurrentArticle = {
           title: articleData.title || selectedArticle.title,
