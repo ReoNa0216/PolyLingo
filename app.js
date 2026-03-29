@@ -389,9 +389,10 @@ ${placeholderText}`;
       document.getElementById(`${mod.id}-bar`).style.width = `${progress}%`;
     }
     
-    // Update due count
-    const allDueEntries = await db.entries.filter(e => new Date(e.nextReview) <= new Date()).toArray();
-    document.getElementById('due-count').textContent = allDueEntries.length;
+    // Update due count - show user's daily limit instead of actual due count
+    const settings = await this.getSettings();
+    const dailyLimit = settings.dailyLimit || 20;
+    document.getElementById('due-count').textContent = dailyLimit;
     
     // Load recent activity
     await this.loadRecentActivity();
