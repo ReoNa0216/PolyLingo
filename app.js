@@ -33,10 +33,20 @@ const app = {
   zdfCurrentArticle: null,
   fetchedZDFFeeds: [], // 已获取的ZDF文章链接
   
-  // China Daily 新闻获取状态（英语）
-  chinaDailyCurrentArticle: null,
-  fetchedChinaDailyFeeds: [], // 已获取的China Daily文章链接
-  chinaDailyCategory: 'world', // 默认栏目: world|business|culture|sports|travel
+  // BBC News 新闻获取状态（英语）
+  bbcCurrentArticle: null,
+  fetchedBBCFeeds: [], // 已获取的BBC文章链接
+  bbcCategory: 'world', // 默认栏目: world|business|technology|science|health
+  
+  // NPR News 新闻获取状态（英语）
+  nprCurrentArticle: null,
+  fetchedNPRFeeds: [], // 已获取的NPR文章链接
+  nprCategory: 'news', // 默认栏目: news|world|usa|business|science|health|tech
+  
+  // The Guardian 新闻获取状态（英语）
+  guardianCurrentArticle: null,
+  fetchedGuardianFeeds: [], // 已获取的Guardian文章链接
+  guardianCategory: 'world', // 默认栏目: world|uk|us|business|science|technology|culture
   
   // Module definitions
   modules: {
@@ -77,7 +87,9 @@ const app = {
       
       // 加载新闻抓取历史
       this.loadZDFHistory();
-      this.loadChinaDailyHistory();
+      this.loadBBCHistory();
+      this.loadNPRHistory();
+      this.loadGuardianHistory();
       
       console.log('App initialized successfully');
     } catch (error) {
@@ -1357,59 +1369,59 @@ ${chunk.substring(0, 8000)}
     }
   },
   
-  // 从localStorage加载已抓取的China Daily文章历史
-  loadChinaDailyHistory() {
+  // ==================== BBC News 功能 ====================
+  
+  // 加载 BBC 抓取历史
+  loadBBCHistory() {
     try {
-      const history = localStorage.getItem('chinadaily_fetched_history');
+      const history = localStorage.getItem('bbc_fetched_history');
       if (history) {
-        this.fetchedChinaDailyFeeds = JSON.parse(history);
-        console.log(`Loaded ${this.fetchedChinaDailyFeeds.length} China Daily articles from history`);
+        this.fetchedBBCFeeds = JSON.parse(history);
+        console.log(`Loaded ${this.fetchedBBCFeeds.length} BBC articles from history`);
       }
     } catch (e) {
-      console.error('Failed to load China Daily history:', e);
-      this.fetchedChinaDailyFeeds = [];
+      console.error('Error loading BBC history:', e);
+      this.fetchedBBCFeeds = [];
     }
   },
   
-  // 保存China Daily抓取历史到localStorage
-  saveChinaDailyHistory() {
+  // 保存 BBC 抓取历史
+  saveBBCHistory() {
     try {
-      localStorage.setItem('chinadaily_fetched_history', JSON.stringify(this.fetchedChinaDailyFeeds));
+      localStorage.setItem('bbc_fetched_history', JSON.stringify(this.fetchedBBCFeeds));
     } catch (e) {
-      console.error('Failed to save China Daily history:', e);
+      console.error('Error saving BBC history:', e);
     }
   },
   
-  // 清空China Daily抓取历史
-  clearChinaDailyHistory() {
-    if (confirm('确定要清空已抓取的China Daily文章记录吗？')) {
-      this.fetchedChinaDailyFeeds = [];
-      localStorage.removeItem('chinadaily_fetched_history');
-      alert('已清空抓取记录');
-    }
+  // 清空 BBC 抓取历史
+  clearBBCHistory() {
+    this.fetchedBBCFeeds = [];
+    localStorage.removeItem('bbc_fetched_history');
+    alert('BBC 抓取记录已清空');
   },
   
-  // 从 China Daily 获取新闻（英语模块）
-  async fetchChinaDailyNews() {
-    if (this.fetchedChinaDailyFeeds.length === 0) {
-      this.loadChinaDailyHistory();
+  // 获取 BBC 新闻
+  async fetchBBCNews() {
+    if (this.fetchedBBCFeeds.length === 0) {
+      this.loadBBCHistory();
     }
     
-    const btn = document.getElementById('chinadaily-fetch-btn');
-    const progress = document.getElementById('chinadaily-progress');
-    const status = document.getElementById('chinadaily-status');
-    const preview = document.getElementById('chinadaily-preview');
-    const contentDiv = document.getElementById('chinadaily-content');
+    const btn = document.getElementById('bbc-fetch-btn');
+    const progress = document.getElementById('bbc-progress');
+    const status = document.getElementById('bbc-status');
+    const preview = document.getElementById('bbc-preview');
+    const contentDiv = document.getElementById('bbc-content');
     
     if (btn) btn.disabled = true;
     if (progress) progress.classList.remove('hidden');
     if (preview) preview.classList.add('hidden');
-    if (status) status.textContent = '正在获取 China Daily 新闻...';
+    if (status) status.textContent = '正在获取 BBC 新闻...';
     
     try {
       const settings = await this.getSettings();
       const PROXY_BASE_URL = settings.proxyUrl;
-      const apiUrl = `${PROXY_BASE_URL}/api/chinadaily/rss?category=${this.chinaDailyCategory}`;
+      const apiUrl = `${PROXY_BASE_URL}/api/bbc/rss?category=${this.bbcCategory}`;
       
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error('Failed to fetch RSS');
@@ -1427,20 +1439,29 @@ ${chunk.substring(0, 8000)}
         const description = item.querySelector('description')?.textContent || '';
         const pubDate = item.querySelector('pubDate')?.textContent || '';
         
-        if (link && !this.fetchedChinaDailyFeeds.includes(link)) {
+        if (link && !this.fetchedBBCFeeds.includes(link)) {
           articles.push({ title, link, description, pubDate });
         }
       });
       
+      // 按发布日期排序（处理无效日期）
+      articles.sort((a, b) => {
+        const dateA = new Date(a.pubDate);
+        const dateB = new Date(b.pubDate);
+        if (isNaN(dateA)) return 1;
+        if (isNaN(dateB)) return -1;
+        return dateB - dateA;
+      });
+      
       if (articles.length === 0) {
-        if (this.fetchedChinaDailyFeeds.length > 50) {
-          this.fetchedChinaDailyFeeds = this.fetchedChinaDailyFeeds.slice(-50);
-          this.saveChinaDailyHistory();
+        if (this.fetchedBBCFeeds.length > 50) {
+          this.fetchedBBCFeeds = this.fetchedBBCFeeds.slice(-50);
+          this.saveBBCHistory();
         }
         
         if (confirm('本栏目所有最新文章都已抓取过。是否清空记录重新抓取？')) {
-          this.fetchedChinaDailyFeeds = [];
-          return this.fetchChinaDailyNews();
+          this.fetchedBBCFeeds = [];
+          return this.fetchBBCNews();
         }
         
         if (status) status.textContent = '暂无新文章';
@@ -1448,29 +1469,39 @@ ${chunk.substring(0, 8000)}
         return;
       }
       
-      const selectedArticle = articles[Math.floor(Math.random() * articles.length)];
-      this.fetchedChinaDailyFeeds.push(selectedArticle.link);
-      this.saveChinaDailyHistory();
+      // 选择最新的一篇文章
+      const selectedArticle = articles[0];
+      this.fetchedBBCFeeds.push(selectedArticle.link);
+      this.saveBBCHistory();
       
       if (status) status.textContent = '正在获取文章内容...';
       
-      const articleProxy = `${settings.proxyUrl}/api/chinadaily/article?url=${encodeURIComponent(selectedArticle.link)}`;
+      const articleProxy = `${settings.proxyUrl}/api/bbc/article?url=${encodeURIComponent(selectedArticle.link)}`;
       const articleRes = await fetch(articleProxy);
       const articleData = await articleRes.json();
       
       if (articleData.content) {
-        this.chinaDailyCurrentArticle = {
+        // 解析日期，处理无效日期情况
+        let dateStr = selectedArticle.pubDate;
+        const pubDate = new Date(selectedArticle.pubDate);
+        if (!isNaN(pubDate)) {
+          dateStr = pubDate.toLocaleDateString('zh-CN');
+        }
+        
+        this.bbcCurrentArticle = {
           title: articleData.title || selectedArticle.title,
           content: articleData.content,
           description: selectedArticle.description,
           link: selectedArticle.link,
-          source: 'China Daily'
+          pubDate: dateStr,
+          source: 'BBC News'
         };
         
         if (contentDiv) {
           contentDiv.innerHTML = `
-            <h5 class="font-bold mb-2">${this.chinaDailyCurrentArticle.title}</h5>
-            <p class="text-xs text-gray-500 mb-2">${this.chinaDailyCurrentArticle.content.substring(0, 300)}...</p>
+            <h5 class="font-bold mb-2">${this.bbcCurrentArticle.title}</h5>
+            <p class="text-xs text-amber-600 mb-2">📅 发布日期：${dateStr}</p>
+            <p class="text-xs text-gray-500 mb-2">${this.bbcCurrentArticle.content.substring(0, 300)}...</p>
           `;
         }
         if (preview) preview.classList.remove('hidden');
@@ -1480,50 +1511,453 @@ ${chunk.substring(0, 8000)}
       }
       
     } catch (error) {
-      console.error('China Daily fetch error:', error);
+      console.error('BBC fetch error:', error);
       if (status) status.textContent = '获取失败: ' + error.message;
     } finally {
       if (btn) btn.disabled = false;
     }
   },
   
-  // 处理 China Daily 内容（AI提取）
-  async processChinaDailyContent() {
-    if (!this.chinaDailyCurrentArticle) {
+  // 处理 BBC 内容（AI提取）
+  async processBBCContent() {
+    if (!this.bbcCurrentArticle) {
       alert('请先获取新闻文章');
       return;
     }
     
-    const progress = document.getElementById('chinadaily-progress');
-    const status = document.getElementById('chinadaily-status');
+    const progress = document.getElementById('bbc-progress');
+    const status = document.getElementById('bbc-status');
     
     if (status) status.textContent = '正在使用AI提取学习条目...';
     
     try {
       const material = {
-        id: `chinadaily_${Date.now()}`,
+        id: `bbc_${Date.now()}`,
         moduleId: this.currentModule,
-        title: `China Daily: ${this.chinaDailyCurrentArticle.title.substring(0, 50)}...`,
-        content: this.chinaDailyCurrentArticle.content,
-        sourceFile: this.chinaDailyCurrentArticle.link,
-        source: this.chinaDailyCurrentArticle.source,
+        title: `BBC: ${this.bbcCurrentArticle.title.substring(0, 50)}...`,
+        content: this.bbcCurrentArticle.content,
+        sourceFile: this.bbcCurrentArticle.link,
+        source: this.bbcCurrentArticle.source,
         createdAt: new Date()
       };
       
       await db.materials.put(material);
       await this.processMaterialWithAI(material);
       
-      const preview = document.getElementById('chinadaily-preview');
+      const preview = document.getElementById('bbc-preview');
       if (preview) preview.classList.add('hidden');
-      this.chinaDailyCurrentArticle = null;
+      if (progress) progress.classList.add('hidden');
+      this.bbcCurrentArticle = null;
       await this.loadModuleMaterials();
       
-      alert('成功从 China Daily 新闻中提取学习条目！');
+      alert('成功从 BBC 新闻中提取学习条目！');
       
     } catch (error) {
-      console.error('China Daily processing error:', error);
+      console.error('BBC processing error:', error);
+      if (status) status.textContent = '处理失败: ' + error.message;
+      if (progress) progress.classList.add('hidden');
+    }
+  },
+  
+  // ==================== The Guardian 功能 ====================
+  
+  // 加载 The Guardian 抓取历史
+  loadGuardianHistory() {
+    try {
+      const history = localStorage.getItem('guardian_fetched_history');
+      if (history) {
+        this.fetchedGuardianFeeds = JSON.parse(history);
+        console.log(`Loaded ${this.fetchedGuardianFeeds.length} The Guardian articles from history`);
+      }
+    } catch (e) {
+      console.error('Error loading The Guardian history:', e);
+      this.fetchedGuardianFeeds = [];
+    }
+  },
+  
+  // 保存 The Guardian 抓取历史
+  saveGuardianHistory() {
+    try {
+      localStorage.setItem('guardian_fetched_history', JSON.stringify(this.fetchedGuardianFeeds));
+    } catch (e) {
+      console.error('Error saving The Guardian history:', e);
+    }
+  },
+  
+  // 清空 The Guardian 抓取历史
+  clearGuardianHistory() {
+    this.fetchedGuardianFeeds = [];
+    localStorage.removeItem('guardian_fetched_history');
+    alert('The Guardian 抓取记录已清空');
+  },
+  
+  // 获取 The Guardian 新闻
+  async fetchGuardianNews() {
+    if (this.fetchedGuardianFeeds.length === 0) {
+      this.loadGuardianHistory();
+    }
+    
+    const btn = document.getElementById('guardian-fetch-btn');
+    const progress = document.getElementById('guardian-progress');
+    const status = document.getElementById('guardian-status');
+    const preview = document.getElementById('guardian-preview');
+    const contentDiv = document.getElementById('guardian-content');
+    
+    if (btn) btn.disabled = true;
+    if (progress) progress.classList.remove('hidden');
+    if (preview) preview.classList.add('hidden');
+    if (status) status.textContent = '正在获取 The Guardian 新闻...';
+    
+    try {
+      const settings = await this.getSettings();
+      const PROXY_BASE_URL = settings.proxyUrl;
+      const apiUrl = `${PROXY_BASE_URL}/api/guardian/rss?category=${this.guardianCategory}`;
+      
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error('Failed to fetch RSS');
+      
+      const rssText = await response.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(rssText, 'text/xml');
+      
+      const items = xmlDoc.querySelectorAll('item');
+      const articles = [];
+      
+      items.forEach(item => {
+        const title = item.querySelector('title')?.textContent || '';
+        const link = item.querySelector('link')?.textContent || '';
+        const description = item.querySelector('description')?.textContent || '';
+        const pubDate = item.querySelector('pubDate')?.textContent || '';
+        
+        if (link && !this.fetchedGuardianFeeds.includes(link)) {
+          articles.push({ title, link, description, pubDate });
+        }
+      });
+      
+      // 按发布日期排序
+      articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+      
+      if (articles.length === 0) {
+        if (this.fetchedGuardianFeeds.length > 50) {
+          this.fetchedGuardianFeeds = this.fetchedGuardianFeeds.slice(-50);
+          this.saveGuardianHistory();
+        }
+        
+        if (confirm('本栏目所有最新文章都已抓取过。是否清空记录重新抓取？')) {
+          this.fetchedGuardianFeeds = [];
+          return this.fetchGuardianNews();
+        }
+        
+        if (status) status.textContent = '暂无新文章';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      
+      // 选择最新的一篇文章
+      const selectedArticle = articles[0];
+      this.fetchedGuardianFeeds.push(selectedArticle.link);
+      this.saveGuardianHistory();
+      
+      if (status) status.textContent = '正在获取文章内容...';
+      
+      const articleProxy = `${settings.proxyUrl}/api/guardian/article?url=${encodeURIComponent(selectedArticle.link)}`;
+      const articleRes = await fetch(articleProxy);
+      const articleData = await articleRes.json();
+      
+      if (articleData.content) {
+        const pubDate = new Date(selectedArticle.pubDate);
+        const dateStr = pubDate.toLocaleDateString('zh-CN');
+        
+        this.guardianCurrentArticle = {
+          title: articleData.title || selectedArticle.title,
+          content: articleData.content,
+          description: selectedArticle.description,
+          link: selectedArticle.link,
+          pubDate: dateStr,
+          source: 'The Guardian'
+        };
+        
+        if (contentDiv) {
+          contentDiv.innerHTML = `
+            <h5 class="font-bold mb-2">${this.guardianCurrentArticle.title}</h5>
+            <p class="text-xs text-amber-600 mb-2">📅 发布日期：${dateStr}</p>
+            <p class="text-xs text-gray-500 mb-2">${this.guardianCurrentArticle.content.substring(0, 300)}...</p>
+          `;
+        }
+        if (preview) preview.classList.remove('hidden');
+        if (status) status.textContent = '文章获取成功！';
+      } else {
+        throw new Error('No content extracted');
+      }
+      
+    } catch (error) {
+      console.error('The Guardian fetch error:', error);
+      if (status) status.textContent = '获取失败: ' + error.message;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  },
+  
+  // 处理 The Guardian 内容（AI提取）
+  async processGuardianContent() {
+    if (!this.guardianCurrentArticle) {
+      alert('请先获取新闻文章');
+      return;
+    }
+    
+    const progress = document.getElementById('guardian-progress');
+    const status = document.getElementById('guardian-status');
+    
+    if (status) status.textContent = '正在使用AI提取学习条目...';
+    
+    try {
+      const material = {
+        id: `guardian_${Date.now()}`,
+        moduleId: this.currentModule,
+        title: `The Guardian: ${this.guardianCurrentArticle.title.substring(0, 50)}...`,
+        content: this.guardianCurrentArticle.content,
+        sourceFile: this.guardianCurrentArticle.link,
+        source: this.guardianCurrentArticle.source,
+        createdAt: new Date()
+      };
+      
+      await db.materials.put(material);
+      await this.processMaterialWithAI(material);
+      
+      const preview = document.getElementById('guardian-preview');
+      if (preview) preview.classList.add('hidden');
+      if (progress) progress.classList.add('hidden');
+      this.guardianCurrentArticle = null;
+      await this.loadModuleMaterials();
+      
+      alert('成功从 The Guardian 新闻中提取学习条目！');
+      
+    } catch (error) {
+      console.error('The Guardian processing error:', error);
+      if (status) status.textContent = '处理失败: ' + error.message;
+      if (progress) progress.classList.add('hidden');
+    }
+  },
+  
+  // ==================== NPR News 功能 ====================
+  
+  // 加载 NPR 抓取历史
+  loadNPRHistory() {
+    try {
+      const history = localStorage.getItem('npr_fetched_history');
+      if (history) {
+        this.fetchedNPRFeeds = JSON.parse(history);
+        console.log(`Loaded ${this.fetchedNPRFeeds.length} NPR articles from history`);
+      }
+    } catch (e) {
+      console.error('Error loading NPR history:', e);
+      this.fetchedNPRFeeds = [];
+    }
+  },
+  
+  // 保存 NPR 抓取历史
+  saveNPRHistory() {
+    try {
+      localStorage.setItem('npr_fetched_history', JSON.stringify(this.fetchedNPRFeeds));
+    } catch (e) {
+      console.error('Error saving NPR history:', e);
+    }
+  },
+  
+  // 清空 NPR 抓取历史
+  clearNPRHistory() {
+    this.fetchedNPRFeeds = [];
+    localStorage.removeItem('npr_fetched_history');
+    alert('NPR 抓取记录已清空');
+  },
+  
+  // 获取 NPR 新闻
+  async fetchNPRNews() {
+    if (this.fetchedNPRFeeds.length === 0) {
+      this.loadNPRHistory();
+    }
+    
+    const btn = document.getElementById('npr-fetch-btn');
+    const progress = document.getElementById('npr-progress');
+    const status = document.getElementById('npr-status');
+    const preview = document.getElementById('npr-preview');
+    const contentDiv = document.getElementById('npr-content');
+    
+    if (btn) btn.disabled = true;
+    if (progress) progress.classList.remove('hidden');
+    if (preview) preview.classList.add('hidden');
+    if (status) status.textContent = '正在获取 NPR 新闻...';
+    
+    try {
+      const settings = await this.getSettings();
+      const PROXY_BASE_URL = settings.proxyUrl;
+      const apiUrl = `${PROXY_BASE_URL}/api/npr/rss?category=${this.nprCategory}`;
+      
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error('Failed to fetch RSS');
+      
+      const rssText = await response.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(rssText, 'text/xml');
+      
+      const items = xmlDoc.querySelectorAll('item');
+      const articles = [];
+      
+      items.forEach(item => {
+        const title = item.querySelector('title')?.textContent || '';
+        const link = item.querySelector('link')?.textContent || '';
+        const description = item.querySelector('description')?.textContent || '';
+        const pubDate = item.querySelector('pubDate')?.textContent || '';
+        
+        if (link && !this.fetchedNPRFeeds.includes(link)) {
+          articles.push({ title, link, description, pubDate });
+        }
+      });
+      
+      // 按发布日期排序（处理无效日期）
+      articles.sort((a, b) => {
+        const dateA = new Date(a.pubDate);
+        const dateB = new Date(b.pubDate);
+        if (isNaN(dateA)) return 1;
+        if (isNaN(dateB)) return -1;
+        return dateB - dateA;
+      });
+      
+      if (articles.length === 0) {
+        if (this.fetchedNPRFeeds.length > 50) {
+          this.fetchedNPRFeeds = this.fetchedNPRFeeds.slice(-50);
+          this.saveNPRHistory();
+        }
+        
+        if (confirm('本栏目所有最新文章都已抓取过。是否清空记录重新抓取？')) {
+          this.fetchedNPRFeeds = [];
+          return this.fetchNPRNews();
+        }
+        
+        if (status) status.textContent = '暂无新文章';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      
+      // 选择最新的一篇文章
+      const selectedArticle = articles[0];
+      this.fetchedNPRFeeds.push(selectedArticle.link);
+      this.saveNPRHistory();
+      
+      if (status) status.textContent = '正在获取文章内容...';
+      
+      const articleProxy = `${settings.proxyUrl}/api/npr/article?url=${encodeURIComponent(selectedArticle.link)}`;
+      const articleRes = await fetch(articleProxy);
+      const articleData = await articleRes.json();
+      
+      if (articleData.content) {
+        // 解析日期，处理无效日期情况
+        let dateStr = selectedArticle.pubDate;
+        const pubDate = new Date(selectedArticle.pubDate);
+        if (!isNaN(pubDate)) {
+          dateStr = pubDate.toLocaleDateString('zh-CN');
+        }
+        
+        this.nprCurrentArticle = {
+          title: articleData.title || selectedArticle.title,
+          content: articleData.content,
+          description: selectedArticle.description,
+          link: selectedArticle.link,
+          pubDate: dateStr,
+          source: 'NPR'
+        };
+        
+        if (contentDiv) {
+          contentDiv.innerHTML = `
+            <h5 class="font-bold mb-2">${this.nprCurrentArticle.title}</h5>
+            <p class="text-xs text-amber-600 mb-2">📅 发布日期：${dateStr}</p>
+            <p class="text-xs text-gray-500 mb-2">${this.nprCurrentArticle.content.substring(0, 300)}...</p>
+          `;
+        }
+        if (preview) preview.classList.remove('hidden');
+        if (status) status.textContent = '文章获取成功！';
+      } else {
+        throw new Error('No content extracted');
+      }
+      
+    } catch (error) {
+      console.error('NPR fetch error:', error);
+      if (status) status.textContent = '获取失败: ' + error.message;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  },
+  
+  // 处理 NPR 内容（AI提取）
+  async processNPRContent() {
+    if (!this.nprCurrentArticle) {
+      alert('请先获取新闻文章');
+      return;
+    }
+    
+    const progress = document.getElementById('npr-progress');
+    const status = document.getElementById('npr-status');
+    
+    if (status) status.textContent = '正在使用AI提取学习条目...';
+    
+    try {
+      const material = {
+        id: `npr_${Date.now()}`,
+        moduleId: this.currentModule,
+        title: `NPR: ${this.nprCurrentArticle.title.substring(0, 50)}...`,
+        content: this.nprCurrentArticle.content,
+        sourceFile: this.nprCurrentArticle.link,
+        source: this.nprCurrentArticle.source,
+        createdAt: new Date()
+      };
+      
+      await db.materials.put(material);
+      await this.processMaterialWithAI(material);
+      
+      const preview = document.getElementById('npr-preview');
+      if (preview) preview.classList.add('hidden');
+      this.nprCurrentArticle = null;
+      await this.loadModuleMaterials();
+      
+      alert('成功从 NPR 新闻中提取学习条目！');
+      
+    } catch (error) {
+      console.error('NPR processing error:', error);
       if (status) status.textContent = '处理失败: ' + error.message;
     }
+  },
+  
+  // 切换英语新闻源选项卡
+  switchEnglishNewsSource(source) {
+    // 隐藏所有面板
+    document.querySelectorAll('.news-panel').forEach(panel => {
+      panel.classList.add('hidden');
+    });
+    
+    // 显示选中的面板
+    const selectedPanel = document.getElementById(`panel-${source}`);
+    if (selectedPanel) selectedPanel.classList.remove('hidden');
+    
+    // 更新选项卡样式
+    const tabs = ['bbc', 'npr', 'guardian'];
+    const colors = {
+      'bbc': { border: 'border-red-600', text: 'text-red-600' },
+      'npr': { border: 'border-blue-700', text: 'text-blue-700' },
+      'guardian': { border: 'border-blue-600', text: 'text-blue-600' }
+    };
+    
+    tabs.forEach(tab => {
+      const tabEl = document.getElementById(`tab-${tab}`);
+      if (tabEl) {
+        if (tab === source) {
+          tabEl.classList.remove('border-transparent', 'text-gray-500');
+          tabEl.classList.add(colors[tab].border, colors[tab].text);
+        } else {
+          tabEl.classList.remove(colors[tab].border, colors[tab].text);
+          tabEl.classList.add('border-transparent', 'text-gray-500');
+        }
+      }
+    });
   },
   
   // 渲染新闻源导入区域
@@ -1536,6 +1970,9 @@ ${chunk.substring(0, 8000)}
         <div class="bg-white rounded-xl shadow-lg p-6 border border-primary-100">
           <h4 class="text-lg font-bold mb-4">📰 从 ZDF Heute 导入新闻</h4>
           <p class="text-sm text-primary-500 mb-3">自动抓取 ZDF Heute 最新文章，AI提取学习条目。每次抓取的文章不重复。</p>
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+            <p class="text-xs text-amber-700">⚠️ 国内用户注意：获取新闻功能需要访问海外服务器，请开启 VPN 后使用。</p>
+          </div>
           <div class="flex flex-wrap gap-3 items-center">
             <button onclick="app.fetchZDFNews()" id="zdf-fetch-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
               🔍 获取新闻文章
@@ -1566,42 +2003,143 @@ ${chunk.substring(0, 8000)}
     } else if (moduleId === 'english') {
       container.innerHTML = `
         <div class="bg-white rounded-xl shadow-lg p-6 border border-primary-100">
-          <h4 class="text-lg font-bold mb-4">📰 从 China Daily 导入新闻</h4>
-          <p class="text-sm text-primary-500 mb-3">自动抓取 China Daily 最新英语文章，AI提取学习条目。每次抓取的文章不重复。</p>
-          <div class="flex flex-wrap gap-3 items-center mb-3">
-            <select id="chinadaily-category" onchange="app.chinaDailyCategory = this.value" class="px-3 py-2 border border-primary-200 rounded-lg text-sm">
-              <option value="world">🌍 国际</option>
-              <option value="business">📈 商业</option>
-              <option value="culture">🎨 文化</option>
-              <option value="sports">⚽ 体育</option>
-              <option value="travel">✈️ 旅行</option>
-            </select>
-            <button onclick="app.fetchChinaDailyNews()" id="chinadaily-fetch-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-              🔍 获取新闻文章
+          <h4 class="text-lg font-bold mb-4">📰 从英语新闻源导入</h4>
+          <p class="text-sm text-primary-500 mb-3">自动抓取 BBC、NPR、The Guardian 最新英语文章，AI提取学习条目。</p>
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+            <p class="text-xs text-amber-700">⚠️ 国内用户注意：获取新闻功能需要访问海外服务器，请开启 VPN 后使用。</p>
+          </div>
+          
+          <!-- 新闻源选项卡 -->
+          <div class="flex gap-2 mb-4 border-b border-gray-200">
+            <button onclick="app.switchEnglishNewsSource('bbc')" id="tab-bbc" class="px-4 py-2 text-sm font-medium border-b-2 border-red-600 text-red-600">
+              📺 BBC News
             </button>
-            <button onclick="app.clearChinaDailyHistory()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm transition-colors" title="清空已抓取记录">
-              🗑️ 清空记录
+            <button onclick="app.switchEnglishNewsSource('npr')" id="tab-npr" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+              📻 NPR
+            </button>
+            <button onclick="app.switchEnglishNewsSource('guardian')" id="tab-guardian" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+              📰 The Guardian
             </button>
           </div>
-          <div class="text-sm text-primary-500">来源：chinadaily.com.cn</div>
-          <div id="chinadaily-progress" class="hidden mt-3">
-            <div class="flex items-center gap-2 text-sm text-primary-600">
-              <svg class="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span id="chinadaily-status">正在获取文章...</span>
+          
+          <!-- BBC News Panel -->
+          <div id="panel-bbc" class="news-panel">
+            <div class="flex flex-wrap gap-3 items-center mb-3">
+              <select id="bbc-category" onchange="app.bbcCategory = this.value" class="px-3 py-2 border border-primary-200 rounded-lg text-sm">
+                <option value="world">🌍 国际</option>
+                <option value="business">📈 商业</option>
+                <option value="technology">💻 科技</option>
+                <option value="science">🔬 科学</option>
+                <option value="health">🏥 健康</option>
+                <option value="uk">英国 (UK)</option>
+                <option value="politics">🏛️ 政治</option>
+              </select>
+              <button onclick="app.fetchBBCNews()" id="bbc-fetch-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                🔍 获取新闻文章
+              </button>
+              <button onclick="app.clearBBCHistory()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm transition-colors" title="清空已抓取记录">
+                🗑️ 清空记录
+              </button>
+            </div>
+            <div class="text-sm text-primary-500">来源：bbc.com/news</div>
+            <div id="bbc-progress" class="hidden mt-3">
+              <div class="flex items-center gap-2 text-sm text-primary-600">
+                <svg class="animate-spin h-4 w-4 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="bbc-status">正在获取文章...</span>
+              </div>
+            </div>
+            <div id="bbc-preview" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+              <div class="font-medium text-sm mb-2">文章预览：</div>
+              <div id="bbc-content" class="text-sm text-primary-600 max-h-32 overflow-y-auto mb-3"></div>
+              <button onclick="app.processBBCContent()" class="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg text-sm transition-colors">
+                🧠 AI提取学习条目
+              </button>
             </div>
           </div>
-          <div id="chinadaily-preview" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
-            <div class="font-medium text-sm mb-2">文章预览：</div>
-            <div id="chinadaily-content" class="text-sm text-primary-600 max-h-32 overflow-y-auto mb-3"></div>
-            <button onclick="app.processChinaDailyContent()" class="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg text-sm transition-colors">
-              🧠 AI提取学习条目
-            </button>
+          
+          <!-- NPR News Panel -->
+          <div id="panel-npr" class="news-panel hidden">
+            <div class="flex flex-wrap gap-3 items-center mb-3">
+              <select id="npr-category" onchange="app.nprCategory = this.value" class="px-3 py-2 border border-primary-200 rounded-lg text-sm">
+                <option value="news">📰 头条</option>
+                <option value="world">🌍 国际</option>
+                <option value="usa">美国 (US)</option>
+                <option value="business">📈 商业</option>
+                <option value="science">🔬 科学</option>
+                <option value="health">🏥 健康</option>
+                <option value="tech">💻 科技</option>
+              </select>
+              <button onclick="app.fetchNPRNews()" id="npr-fetch-btn" class="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg transition-colors">
+                🔍 获取新闻文章
+              </button>
+              <button onclick="app.clearNPRHistory()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm transition-colors" title="清空已抓取记录">
+                🗑️ 清空记录
+              </button>
+            </div>
+            <div class="text-sm text-primary-500">来源：npr.org</div>
+            <div id="npr-progress" class="hidden mt-3">
+              <div class="flex items-center gap-2 text-sm text-primary-600">
+                <svg class="animate-spin h-4 w-4 text-blue-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="npr-status">正在获取文章...</span>
+              </div>
+            </div>
+            <div id="npr-preview" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+              <div class="font-medium text-sm mb-2">文章预览：</div>
+              <div id="npr-content" class="text-sm text-primary-600 max-h-32 overflow-y-auto mb-3"></div>
+              <button onclick="app.processNPRContent()" class="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg text-sm transition-colors">
+                🧠 AI提取学习条目
+              </button>
+            </div>
+          </div>
+          
+          <!-- The Guardian Panel -->
+          <div id="panel-guardian" class="news-panel hidden">
+            <div class="flex flex-wrap gap-3 items-center mb-3">
+              <select id="guardian-category" onchange="app.guardianCategory = this.value" class="px-3 py-2 border border-primary-200 rounded-lg text-sm">
+                <option value="world">🌍 国际</option>
+                <option value="uk">英国 (UK)</option>
+                <option value="us">美国 (US)</option>
+                <option value="business">📈 商业</option>
+                <option value="science">🔬 科学</option>
+                <option value="technology">💻 科技</option>
+                <option value="culture">🎨 文化</option>
+              </select>
+              <button onclick="app.fetchGuardianNews()" id="guardian-fetch-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                🔍 获取新闻文章
+              </button>
+              <button onclick="app.clearGuardianHistory()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm transition-colors" title="清空已抓取记录">
+                🗑️ 清空记录
+              </button>
+            </div>
+            <div class="text-sm text-primary-500">来源：theguardian.com</div>
+            <div id="guardian-progress" class="hidden mt-3">
+              <div class="flex items-center gap-2 text-sm text-primary-600">
+                <svg class="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="guardian-status">正在获取文章...</span>
+              </div>
+            </div>
+            <div id="guardian-preview" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+              <div class="font-medium text-sm mb-2">文章预览：</div>
+              <div id="guardian-content" class="text-sm text-primary-600 max-h-32 overflow-y-auto mb-3"></div>
+              <button onclick="app.processGuardianContent()" class="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg text-sm transition-colors">
+                🧠 AI提取学习条目
+              </button>
+            </div>
           </div>
         </div>
       `;
+      
+      // 初始化显示 BBC 选项卡
+      this.switchEnglishNewsSource('bbc');
     } else {
       // 其他语言暂无新闻源
       container.innerHTML = '';
