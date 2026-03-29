@@ -534,16 +534,24 @@ app.get('/api/asahi/article', async (req, res) => {
     const $ = cheerio.load(response.data);
     
     // Extract article content
-    const title = $('h1').first().text().trim() || $('meta[property="og:title"]').attr('content');
+    let title = $('h1').first().text().trim() || $('meta[property="og:title"]').attr('content');
     
-    // Asahi specific selectors
+    // Asahi specific selectors - expanded list
     let content = '';
     const contentSelectors = [
-      '[data-uuid] p',              // Asahi article body
+      '.article__content p',        // Asahi modern layout
+      '.ArticleBody p',             // Alternative class
+      '[data-uuid] p',              // Asahi article body with data attribute
       '.article_body p',
+      '.article p',
       'article p',
       '.main p',
-      '.content p'
+      '.content p',
+      '.main-content p',
+      '.article-text p',
+      '#article-body p',
+      '.story p',
+      '.news p'
     ];
     
     for (const selector of contentSelectors) {
@@ -554,6 +562,32 @@ app.get('/api/asahi/article', async (req, res) => {
       }
     }
     
+    // If still no content, try to find any div with article-like content
+    if (content.length < 200) {
+      // Try finding divs with article-related class names
+      const articleDivs = $('div').filter((i, el) => {
+        const className = $(el).attr('class') || '';
+        return /article|content|body|main/i.test(className);
+      });
+      
+      if (articleDivs.length > 0) {
+        // Get the div with most paragraph children
+        let bestDiv = null;
+        let maxP = 0;
+        articleDivs.each((i, el) => {
+          const pCount = $(el).find('p').length;
+          if (pCount > maxP) {
+            maxP = pCount;
+            bestDiv = el;
+          }
+        });
+        
+        if (bestDiv && maxP > 0) {
+          content = $(bestDiv).find('p').map((i, el) => $(el).text().trim()).get().join('\n\n');
+        }
+      }
+    }
+    
     // Also try to get summary/description if content is short
     if (content.length < 100) {
       const metaDesc = $('meta[name="description"]').attr('content') || 
@@ -561,7 +595,7 @@ app.get('/api/asahi/article', async (req, res) => {
       if (metaDesc) content = metaDesc;
     }
     
-    console.log('Asahi article parsed:', { title: title?.substring(0, 50), contentLength: content.length });
+    console.log('Asahi article parsed:', { title: title?.substring(0, 50), contentLength: content.length, selectors: contentSelectors.join(', ') });
     
     res.json({
       title,

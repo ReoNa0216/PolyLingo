@@ -2569,10 +2569,11 @@ ${chunk.substring(0, 8000)}
         };
         
         if (contentDiv) {
+          const contentLength = this.asahiCurrentArticle.content.length;
           contentDiv.innerHTML = `
             <div class="font-bold mb-2">${this.escapeHtml(this.asahiCurrentArticle.title)}</div>
-            <div class="text-xs text-gray-500 mb-2">${this.asahiCurrentArticle.source} · ${this.asahiCurrentArticle.pubDate}</div>
-            <div class="text-xs text-gray-600 line-clamp-4">${this.escapeHtml(this.asahiCurrentArticle.content.substring(0, 300))}...</div>
+            <div class="text-xs text-gray-500 mb-2">${this.asahiCurrentArticle.source} · ${this.asahiCurrentArticle.pubDate} · ${contentLength}字</div>
+            <div class="text-xs text-gray-600 line-clamp-4">${this.escapeHtml(this.asahiCurrentArticle.content.substring(0, 300))}${contentLength > 300 ? '...' : ''}</div>
           `;
         }
         
