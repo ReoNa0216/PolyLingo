@@ -48,6 +48,15 @@ const app = {
   fetchedGuardianFeeds: [], // 已获取的Guardian文章链接
   guardianCategory: 'world', // 默认栏目: world|uk|us|business|science|technology|culture
   
+  // 批量删除状态
+  batchMode: { word: false, phrase: false, sentence: false },
+  selectedEntries: { word: new Set(), phrase: new Set(), sentence: new Set() },
+  
+  // Yahoo! Japan 新闻获取状态（日语）
+  yahooJapanCurrentArticle: null,
+  fetchedYahooJapanFeeds: [], // 已获取的Yahoo Japan文章链接
+  yahooJapanCategory: 'domestic', // 默认栏目: domestic|world|business|entertainment|sports|it
+  
   // Module definitions
   modules: {
     german: { id: 'german', name: '德语', language: 'German', flag: 'de', code: 'DE' },
@@ -339,7 +348,7 @@ ${placeholderText}`;
       const hints = {
         german: '💡 AI将自动识别词性（如名词der/die/das、动词等）并生成中文翻译和例句',
         english: '💡 AI将自动识别词性（如名词、动词等）并生成中文翻译和例句',
-        japanese: '💡 AI将自动识别词性（如名词、动词等）并生成中文翻译和例句'
+        japanese: '💡 AI将自动识别词性（他动词·五段/一段、自动词·五段/一段、名词、い形容词、な形容动词等），为汉字标注平假名读音，并生成中文翻译和例句'
       };
       aiHint.textContent = hints[moduleId] || hints.english;
     }
@@ -776,6 +785,7 @@ ${placeholderText}`;
   async callAIForEntriesChunk(chunk, mod, settings, chunkIndex, totalChunks) {
     const isGerman = mod.id === 'german' || mod.language === 'German';
     const isEnglish = mod.id === 'english' || mod.language === 'English';
+    const isJapanese = mod.id === 'japanese' || mod.language === 'Japanese';
     
     // 针对德语的特殊提示
     const germanPrompt = isGerman ? `特别注意：这是德语学习材料，请积极、尽可能多地提取学习条目，严格按照以下三类分类：
@@ -822,16 +832,50 @@ ${placeholderText}`;
 - 不要过滤"简单"或"复杂"的词汇，只要是有学习价值的词都要提取
 - 例句可以由AI生成，不一定要来源于原文，但必须符合词义和用法` : '';
     
+    // 针对日语的特殊提示
+    const japanesePrompt = isJapanese ? `特别注意：这是日语学习材料，请严格按照以下规则提取：
+
+【注音规则 - 非常重要】
+1. 复合词要整体标注读音，不要逐字拆开：
+   - 正确："大人(おとな)"、"引き付ける(ひきつける)"
+   - 错误："大(お)人(とな)"、"引(ひ)き(つ)付(つ)ける"
+
+2. 【单词 word】分类处理：
+   - 含日文汉字的单词：必须在original中标注完整读音，如"学生(がくせい)"
+   - 片假名外来语：标注外来语原文，如"コンピュータ(computer)"
+   - 纯平假名单词：保持原样
+   - 词性详细标注：他动词·五段/一段、自动词·五段/一段、名词、形容动词、形容词等
+   
+3. 【短语 phrase】分类处理：
+   - 含汉字的短语：整体标注读音，如"日本語(にほんご)"
+   - 片假名短语：标注外来语原文
+   
+4. 【语句 sentence】：
+   - 复合词整体标注：如"大人(おとな)"、"引き付ける(ひきつける)"
+   - 不要逐字拆开注音
+   - 只需要：原文（带注音）、中文翻译
+
+常见错误纠正：
+- "大人" → 大人(おとな)，不要大(お)人(とな)
+- "引き付ける" → 引き付ける(ひきつける)，不要引(ひ)き(つ)付(つ)ける
+
+格式示例：
+- 汉字单词：{"type": "word", "original": "学生(がくせい)", "translation": "学生", "wordType": "名词", ...}
+- 外来语：{"type": "word", "original": "コンピュータ(computer)", "translation": "计算机", "wordType": "名词", ...}
+- 语句：{"type": "sentence", "original": "私(わたし)は大人(おとな)です。", "translation": "我是大人。"}` : '';
+    
     // 语言过滤说明 - 确保只提取目标语言
     const languageFilter = isGerman 
       ? `语言过滤：只提取德语内容，忽略所有中文文本。如果材料是中德混合的，只提取德语词汇和句子，不要提取中文内容。`
       : isEnglish 
       ? `语言过滤：只提取英语内容，忽略所有中文文本。如果材料是中英混合的，只提取英语词汇和句子，不要提取中文内容。`
+      : isJapanese
+      ? `语言过滤：只提取日语内容（包括汉字、平假名、片假名），忽略所有中文文本。`
       : `语言过滤：只提取${mod.language}内容，忽略中文文本。`;
     
     const prompt = `从以下${mod.name}教材内容中积极提取学习条目。这是第 ${chunkIndex}/${totalChunks} 部分。
 
-${germanPrompt}${englishPrompt}
+${germanPrompt}${englishPrompt}${japanesePrompt}
 
 核心要求：
 1. ${languageFilter}
@@ -869,6 +913,46 @@ ${chunk.substring(0, 5000)}
   \"gender\": \"\",
   \"explanation\": \"表示时间的介词短语\",
   \"example\": \"Ich gehe am Abend ins Kino. 我晚上去看电影。\"
+}` : isJapanese ? `{
+  \"type\": \"word\",
+  \"original\": \"学生(がくせい)\",
+  \"translation\": \"学生\",
+  \"wordType\": \"名词\",
+  \"gender\": \"\",
+  \"explanation\": \"在学校学习的人\",
+  \"example\": \"私は学生です。我是学生。\"
+}, {
+  \"type\": \"word\",
+  \"original\": \"コンピュータ(computer)\",
+  \"translation\": \"计算机\",
+  \"wordType\": \"名词\",
+  \"gender\": \"\",
+  \"explanation\": \"电子计算机，电脑\",
+  \"example\": \"コンピュータを使います。使用电脑。\"
+}, {
+  \"type\": \"word\",
+  \"original\": \"ありがとう\",
+  \"translation\": \"谢谢\",
+  \"wordType\": \"感叹词\",
+  \"gender\": \"\",
+  \"explanation\": \"表示感谢的礼貌用语\",
+  \"example\": \"ありがとうございます。非常感谢。\"
+}, {
+  \"type\": \"phrase\",
+  \"original\": \"日本語(にほんご)\",
+  \"translation\": \"日语\",
+  \"wordType\": \"\",
+  \"gender\": \"\",
+  \"explanation\": \"日本的语言\",
+  \"example\": \"日本語を勉強します。学习日语。\"
+}, {
+  \"type\": \"sentence\",
+  \"original\": \"私(わたし)は学生(がくせい)です。\",
+  \"translation\": \"我是学生。\",
+  \"wordType\": \"\",
+  \"gender\": \"\",
+  \"explanation\": \"\",
+  \"example\": \"\"
 }` : `{
   \"type\": \"word\",
   \"original\": \"evening\",
@@ -902,7 +986,7 @@ ${chunk.substring(0, 5000)}
           { role: 'user', content: prompt }
         ],
         temperature: 0.3,
-        max_tokens: 8000
+        max_tokens: settings.maxTokens || 8000
       })
     });
     
@@ -1092,7 +1176,7 @@ ${chunk.substring(0, 8000)}
             { role: 'user', content: simplePrompt }
           ],
           temperature: 0.5,
-          max_tokens: 24000
+          max_tokens: settings.maxTokens || 16000
         })
       });
       
@@ -2000,6 +2084,49 @@ ${chunk.substring(0, 8000)}
           </div>
         </div>
       `;
+    } else if (moduleId === 'japanese') {
+      container.innerHTML = `
+        <div class="bg-white rounded-xl shadow-lg p-6 border border-primary-100">
+          <h4 class="text-lg font-bold mb-4">🇯🇵 从 Yahoo!ニュース导入新闻</h4>
+          <p class="text-sm text-primary-500 mb-3">自动抓取 Yahoo! Japan 最新日语新闻，AI提取学习条目。每次抓取的文章不重复。</p>
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+            <p class="text-xs text-amber-700">⚠️ 国内用户注意：获取新闻功能需要访问海外服务器，请开启 VPN 后使用。</p>
+          </div>
+          <div class="flex flex-wrap gap-3 items-center mb-3">
+            <select id="yahoojapan-category" onchange="app.yahooJapanCategory = this.value" class="px-3 py-2 border border-primary-200 rounded-lg text-sm">
+              <option value="domestic">🇯🇵 国内</option>
+              <option value="world">🌍 国际</option>
+              <option value="business">📈 经済</option>
+              <option value="entertainment">🎬 娱乐</option>
+              <option value="sports">⚽ 体育</option>
+              <option value="it">💻 IT・科学</option>
+            </select>
+            <button onclick="app.fetchYahooJapanNews()" id="yahoojapan-fetch-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+              🔍 获取新闻文章
+            </button>
+            <button onclick="app.clearYahooJapanHistory()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm transition-colors" title="清空已抓取记录">
+              🗑️ 清空记录
+            </button>
+            <span class="text-sm text-primary-500">来源：news.yahoo.co.jp</span>
+          </div>
+          <div id="yahoojapan-progress" class="hidden mt-3">
+            <div class="flex items-center gap-2 text-sm text-primary-600">
+              <svg class="animate-spin h-4 w-4 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span id="yahoojapan-status">正在获取文章...</span>
+            </div>
+          </div>
+          <div id="yahoojapan-preview" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+            <div class="font-medium text-sm mb-2">文章预览：</div>
+            <div id="yahoojapan-content" class="text-sm text-primary-600 max-h-32 overflow-y-auto mb-3"></div>
+            <button onclick="app.processYahooJapanContent()" class="px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg text-sm transition-colors">
+              🧠 AI提取学习条目
+            </button>
+          </div>
+        </div>
+      `;
     } else if (moduleId === 'english') {
       container.innerHTML = `
         <div class="bg-white rounded-xl shadow-lg p-6 border border-primary-100">
@@ -2311,6 +2438,199 @@ ${chunk.substring(0, 8000)}
     }
   },
   
+  // 从 localStorage 加载已抓取的 Yahoo Japan 文章历史
+  loadYahooJapanHistory() {
+    try {
+      const history = localStorage.getItem('yahoojapan_fetched_history');
+      if (history) {
+        this.fetchedYahooJapanFeeds = JSON.parse(history);
+        console.log(`Loaded ${this.fetchedYahooJapanFeeds.length} Yahoo Japan articles from history`);
+      }
+    } catch (e) {
+      console.error('Failed to load Yahoo Japan history:', e);
+      this.fetchedYahooJapanFeeds = [];
+    }
+  },
+  
+  // 保存 Yahoo Japan 抓取历史到 localStorage
+  saveYahooJapanHistory() {
+    try {
+      localStorage.setItem('yahoojapan_fetched_history', JSON.stringify(this.fetchedYahooJapanFeeds));
+    } catch (e) {
+      console.error('Failed to save Yahoo Japan history:', e);
+    }
+  },
+  
+  // 清空 Yahoo Japan 抓取历史
+  clearYahooJapanHistory() {
+    if (confirm('确定要清空已抓取的文章记录吗？清空后可以重新抓取之前的文章。')) {
+      this.fetchedYahooJapanFeeds = [];
+      localStorage.removeItem('yahoojapan_fetched_history');
+      alert('已清空抓取记录');
+    }
+  },
+  
+  // 从 Yahoo Japan 获取新闻
+  async fetchYahooJapanNews() {
+    // 确保历史记录已加载
+    if (this.fetchedYahooJapanFeeds.length === 0) {
+      this.loadYahooJapanHistory();
+    }
+    
+    const btn = document.getElementById('yahoojapan-fetch-btn');
+    const progress = document.getElementById('yahoojapan-progress');
+    const status = document.getElementById('yahoojapan-status');
+    const preview = document.getElementById('yahoojapan-preview');
+    const contentDiv = document.getElementById('yahoojapan-content');
+    
+    if (btn) btn.disabled = true;
+    if (progress) progress.classList.remove('hidden');
+    if (preview) preview.classList.add('hidden');
+    if (status) status.textContent = '正在获取 Yahoo! ニュース...';
+    
+    try {
+      const settings = await this.getSettings();
+      const PROXY_BASE_URL = settings.proxyUrl;
+      const apiUrl = `${PROXY_BASE_URL}/api/yahoojapan/rss?category=${this.yahooJapanCategory}`;
+      
+      console.log('Fetching Yahoo Japan RSS:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error('Failed to fetch RSS');
+      
+      const rssText = await response.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(rssText, 'text/xml');
+      
+      const items = xmlDoc.querySelectorAll('item');
+      const articles = [];
+      
+      items.forEach(item => {
+        const title = item.querySelector('title')?.textContent || '';
+        const link = item.querySelector('link')?.textContent || '';
+        const description = item.querySelector('description')?.textContent || '';
+        const pubDate = item.querySelector('pubDate')?.textContent || '';
+        
+        if (link && !this.fetchedYahooJapanFeeds.includes(link)) {
+          articles.push({ title, link, description, pubDate });
+        }
+      });
+      
+      // 按发布日期排序
+      articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+      
+      if (articles.length === 0) {
+        // 如果所有最新文章都已抓取，提示用户
+        if (this.fetchedYahooJapanFeeds.length > 50) {
+          // 保留最近50条记录
+          this.fetchedYahooJapanFeeds = this.fetchedYahooJapanFeeds.slice(-50);
+          this.saveYahooJapanHistory();
+        }
+        
+        if (confirm('本栏目所有最新文章都已抓取过。是否清空记录重新抓取？')) {
+          this.fetchedYahooJapanFeeds = [];
+          return this.fetchYahooJapanNews();
+        }
+        
+        if (status) status.textContent = '暂无新文章';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      
+      // 选择最新的一篇文章
+      const selectedArticle = articles[0];
+      this.fetchedYahooJapanFeeds.push(selectedArticle.link);
+      this.saveYahooJapanHistory();
+      
+      if (status) status.textContent = '正在获取文章内容...';
+      
+      // 通过代理获取文章内容
+      const articleProxy = `${PROXY_BASE_URL}/api/yahoojapan/article?url=${encodeURIComponent(selectedArticle.link)}`;
+      const articleRes = await fetch(articleProxy);
+      const articleData = await articleRes.json();
+      
+      if (articleData.content) {
+        const pubDate = new Date(selectedArticle.pubDate);
+        const dateStr = pubDate.toLocaleDateString('ja-JP');
+        
+        this.yahooJapanCurrentArticle = {
+          title: articleData.title || selectedArticle.title,
+          content: articleData.content,
+          description: selectedArticle.description,
+          link: selectedArticle.link,
+          pubDate: dateStr,
+          source: articleData.source || 'Yahoo! ニュース'
+        };
+        
+        // 显示预览
+        if (contentDiv) {
+          contentDiv.innerHTML = `
+            <div class="font-bold mb-2">${this.escapeHtml(this.yahooJapanCurrentArticle.title)}</div>
+            <div class="text-xs text-gray-500 mb-2">${this.yahooJapanCurrentArticle.source} · ${this.yahooJapanCurrentArticle.pubDate}</div>
+            <div class="text-xs text-gray-600 line-clamp-4">${this.escapeHtml(this.yahooJapanCurrentArticle.content.substring(0, 300))}...</div>
+          `;
+        }
+        
+        if (preview) preview.classList.remove('hidden');
+        if (status) status.textContent = '获取成功！';
+      } else {
+        throw new Error('无法解析文章内容');
+      }
+      
+    } catch (error) {
+      console.error('Yahoo Japan fetch error:', error);
+      alert('获取失败: ' + error.message + '\n\n请检查网络连接或稍后重试。');
+    } finally {
+      if (btn) btn.disabled = false;
+      setTimeout(() => progress?.classList.add('hidden'), 2000);
+    }
+  },
+  
+  // 处理 Yahoo Japan 内容（AI提取）
+  async processYahooJapanContent() {
+    if (!this.yahooJapanCurrentArticle) {
+      alert('请先获取新闻文章');
+      return;
+    }
+    
+    const progress = document.getElementById('yahoojapan-progress');
+    const status = document.getElementById('yahoojapan-status');
+    
+    try {
+      progress.classList.remove('hidden');
+      status.textContent = '正在使用AI提取学习条目...';
+      
+      // 保存为材料
+      const material = {
+        id: `yahoojapan_${Date.now()}`,
+        moduleId: this.currentModule,
+        title: `Yahoo: ${this.yahooJapanCurrentArticle.title.substring(0, 50)}...`,
+        content: this.yahooJapanCurrentArticle.content,
+        sourceFile: this.yahooJapanCurrentArticle.link,
+        source: this.yahooJapanCurrentArticle.source,
+        createdAt: new Date()
+      };
+      
+      await db.materials.put(material);
+      
+      // 使用AI处理
+      await this.processMaterialWithAI(material);
+      
+      // 清空状态
+      document.getElementById('yahoojapan-preview').classList.add('hidden');
+      this.yahooJapanCurrentArticle = null;
+      status.textContent = '完成！';
+      
+      alert('成功从 Yahoo! ニュース中提取学习条目！');
+      
+    } catch (error) {
+      console.error('Yahoo Japan processing error:', error);
+      alert('处理失败: ' + error.message);
+    } finally {
+      setTimeout(() => progress.classList.add('hidden'), 2000);
+    }
+  },
+  
   // 批量导入词汇（简化版 - 只需单词列表，AI补全所有信息）
   async bulkImportVocabulary() {
     const textArea = document.getElementById('bulk-import-text');
@@ -2387,8 +2707,15 @@ ${chunk.substring(0, 8000)}
         entry.moduleId = this.currentModule;
       });
       
-      // 保存到数据库
-      await db.entries.bulkAdd(entries);
+      // 保存到数据库 - 逐个添加以获取ID
+      console.log('Saving entries to DB:', entries.length);
+      for (let i = 0; i < entries.length; i++) {
+        try {
+          entries[i].id = await db.entries.add(entries[i]);
+        } catch (err) {
+          console.error('Failed to add entry:', entries[i], err);
+        }
+      }
       
       // 刷新仪表板
       await this.loadDashboard();
@@ -2421,7 +2748,7 @@ ${chunk.substring(0, 8000)}
   // 使用AI补全词条信息
   async enrichEntriesWithAI(entries, settings) {
     const isGerman = this.currentModule === 'german';
-    const isEnglish = this.currentModule === 'english';
+    const isJapanese = this.currentModule === 'japanese';
     const mod = this.modules[this.currentModule];
     
     const wordsList = entries.map(e => {
@@ -2435,7 +2762,42 @@ ${chunk.substring(0, 8000)}
       ? '- gender: 性别标记 m./f./n./pl. 或空（必须为名词标注der/die/das）'
       : '- gender: 非德语语言此字段留空';
     
-    const prompt = `你是一位${mod.name}教学专家。请为以下${mod.language}词汇补全中文翻译、用法解释和示例句子。
+    const japaneseDesc = isJapanese ? `
+日语特殊要求：
+- 含汉字词汇：original格式为"汉字(平假名)"，如"日本語(にほんご)"，复合词整体标注
+- 片假名外来语：original格式为"片假名(英语原文)"，如"アイスクリーム(ice cream)"
+- 示例句子中的汉字必须标注平假名读音，复合词整体标注` : '';
+    
+    const prompt = isJapanese
+      ? `你是一位专业的日语教学专家。请为以下日语词汇补全完整信息。
+
+【重要 - 注音规则】
+1. 单词读音（original）：
+   - 含汉字的词汇：整体标注读音，如"学生(がくせい)"
+   - 片假名外来语：标注来源，如"アイスクリーム(ice cream)"
+
+2. 例句注音（example）- 关键规则：
+   - 复合词整体标注，不要逐字拆开
+   - 正确："大人(おとな)"、"引き付ける(ひきつける)"
+   - 错误："大(お)人(とな)"、"引(ひ)き(つ)付(つ)ける"
+
+3. 常见错误纠正：
+   - "大人" → 大人(おとな)，不要大(お)人(とな)
+   - "引き付ける" → 引き付ける(ひきつける)，不要拆开
+
+请严格按照以下格式返回JSON数组，每个词条包含：
+- original: 原词（含读音标注，如"学生(がくせい)"）
+- translation: 中文翻译
+- wordType: 词性（名词、他动词·五段/一段、自动词·五段/一段、い形容词、な形容动词等）
+- gender: 留空
+- explanation: 用法说明
+- example: 示例句子（复合词整体标注，如"私(わたし)は大人(おとな)です。"）
+
+请为以下词汇补全信息：
+${wordsList}
+
+返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "", "explanation": "...", "example": "..."}]`
+      : `你是一位${mod.name}教学专家。请为以下${mod.language}词汇补全中文翻译、用法解释和示例句子。
 
 请严格按照以下格式返回JSON数组，每个词条包含：
 - original: 原词
@@ -2462,11 +2824,11 @@ ${wordsList}
         body: JSON.stringify({
           model: settings.model,
           messages: [
-            { role: 'system', content: '你是一位专业的德语教学专家，擅长提供准确的中文翻译和实用的示例。请返回有效的JSON数组。' },
+            { role: 'system', content: `你是一位专业的${mod.name}教学专家，擅长提供准确的中文翻译和实用的示例。请返回有效的JSON数组。` },
             { role: 'user', content: prompt }
           ],
           temperature: 0.3,
-          max_tokens: 3000
+          max_tokens: settings.maxTokens || 8000
         })
       });
       
@@ -2476,6 +2838,8 @@ ${wordsList}
       
       const data = await response.json();
       const content = data.choices[0].message.content;
+      
+      console.log('AI response for', mod.name, ':', content.substring(0, 500));
       
       // 解析JSON
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -2496,7 +2860,13 @@ ${wordsList}
       }
     } catch (error) {
       console.error('AI enrichment failed:', error);
-      // AI补全失败时，保留原始解析的数据
+      // AI补全失败时，保留原始解析的数据，添加提示
+      entries.forEach(entry => {
+        if (!entry.translation || entry.translation === '') {
+          entry.translation = `（需手动补充）`;
+          entry.explanation = entry.explanation || 'AI补全失败，请手动编辑补充信息';
+        }
+      });
     }
   },
   
@@ -2526,6 +2896,7 @@ ${wordsList}
   // AI完整补全：词性、翻译、解释、例句
   async enrichEntriesCompleteWithAI(entries, settings) {
     const isGerman = this.currentModule === 'german';
+    const isJapanese = this.currentModule === 'japanese';
     const mod = this.modules[this.currentModule];
     
     const wordsList = entries.map(e => e.original).join('\n');
@@ -2534,7 +2905,51 @@ ${wordsList}
       ? '- gender: 性别标记 m./f./n./pl. 或空（必须为名词标注der/die/das）'
       : '- gender: 非德语语言此字段留空（英语等语言无需性别标记）';
     
-    const prompt = `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。
+    // 日语特殊处理
+    const japaneseDesc = isJapanese ? `
+日语特殊要求：
+1. 含日文汉字的单词：original格式必须是"汉字(平假名)"，如"学生(がくせい)"
+2. 片假名外来语：original格式必须是"片假名(英语原文)"，如"コンピュータ(computer)"
+3. 纯平假名单词：保持原样
+4. wordType必须详细标注：
+   - 动词：他动词·五段/一段、自动词·五段/一段
+   - 名词：名词
+   - 形容词：い形容词/な形容动词
+   - 其他：副词、助词、感叹词等
+5. 示例句子中的汉字必须标注平假名读音` : '';
+    
+    const prompt = isJapanese 
+      ? `你是一位专业的日语教学专家。请为以下日语单词识别类型并补全完整信息。
+
+【重要规则 - 注音规范】
+1. 单词注音（original字段）：
+   - 汉字单词：标注整个词的读音，格式"单词(读音)"，如"学生(がくせい)"
+   - 片假名外来语：标注来源，格式"カタカナ(英语原文)"，如"コンピュータ(computer)"
+   - 纯平假名：保持原样
+
+2. 例句注音（example字段）- 关键规则：
+   - 复合词整体标注：如"大人(おとな)"、"引き付ける(ひきつける)"
+   - 不要逐字拆开注音：错误示例"大(お)人(とな)"、"引(ひ)き(つ)付(つ)ける"
+   - 动词连用形+助词要整体标注：如"食べて(たべて)"、"行きます(いきます)"
+
+3. 常见错误纠正：
+   - "大人" → 正确：大人(おとな)，错误：大(お)人(とな)
+   - "引き付ける" → 正确：引き付ける(ひきつける)，错误：引(ひ)き(つ)付(つ)ける
+   - "食べて" → 正确：食べて(たべて)，错误：食(た)べ(べ)て
+
+请严格按照JSON格式返回数组，每个词条包含：
+- original: 原词（含读音标注，如"学生(がくせい)"或"コンピュータ(computer)"）
+- translation: 中文翻译
+- wordType: 详细词性（如"他动词·五段"、"名词"、"な形容动词"等）
+- gender: 留空
+- explanation: 用法解释（包括搭配、敬体/简体使用场景等）
+- example: 示例句子（汉字标注平假名，复合词整体标注，如"私(わたし)は大人(おとな)です。"）
+
+请为以下单词补全信息：
+${wordsList}
+
+返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "", "explanation": "...", "example": "..."}]`
+      : `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。
 
 请严格按照JSON格式返回数组，每个词条包含：
 - original: 原词（必须与输入一致）
@@ -2554,55 +2969,80 @@ ${wordsList}
 
 返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "...", "explanation": "...", "example": "..."}]`;
 
-    try {
-      const response = await fetch(`${settings.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey}`
-        },
-        body: JSON.stringify({
-          model: settings.model,
-          messages: [
-            { role: 'system', content: '你是一位专业的德语教学专家，擅长提供准确的词性标注、中文翻译和实用的示例。请返回有效的JSON数组。' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.3,
-          max_tokens: 4000
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const content = data.choices[0].message.content;
-      
-      // 解析JSON
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const enrichedData = JSON.parse(jsonMatch[0]);
-        
-        // 将AI补全的信息合并到条目
-        entries.forEach((entry, index) => {
-          if (enrichedData[index]) {
-            const enriched = enrichedData[index];
-            entry.translation = enriched.translation || '';
-            entry.wordType = enriched.wordType || '';
-            entry.gender = enriched.gender || '';
-            entry.explanation = enriched.explanation || '';
-            entry.example = enriched.example || '';
-          }
+    let retries = 0;
+    const maxRetries = 2;
+    
+    while (retries <= maxRetries) {
+      try {
+        const response = await fetch(`${settings.apiUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`
+          },
+          body: JSON.stringify({
+            model: settings.model,
+            messages: [
+              { role: 'system', content: `你是一位专业的${mod.name}教学专家，擅长提供准确的词性标注、中文翻译和实用的示例。请返回有效的JSON数组。` },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.3,
+            max_tokens: settings.maxTokens || 8000
+          })
         });
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const content = data.choices[0].message.content;
+        
+        console.log('AI response for', mod.name, ':', content.substring(0, 500));
+        
+        // 解析JSON
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const enrichedData = JSON.parse(jsonMatch[0]);
+          
+          // 将AI补全的信息合并到条目
+          entries.forEach((entry, index) => {
+            if (enrichedData[index]) {
+              const enriched = enrichedData[index];
+              entry.translation = enriched.translation || '';
+              entry.wordType = enriched.wordType || '';
+              entry.gender = enriched.gender || '';
+              entry.explanation = enriched.explanation || '';
+              entry.example = enriched.example || '';
+            } else {
+              console.warn(`No enrichment data for entry ${index}:`, entry.original);
+            }
+          });
+          
+          // 成功则跳出重试循环
+          break;
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (error) {
+        retries++;
+        console.error(`AI enrichment attempt ${retries} failed:`, error);
+        
+        if (retries > maxRetries) {
+          // 所有重试都失败
+          entries.forEach((entry, index) => {
+            if (!entry.translation) {
+              entry.translation = `（AI补全失败: ${error.message}）`;
+              entry.explanation = '请手动补充该词条信息';
+              entry.wordType = entry.wordType || '未知';
+            }
+          });
+          break;
+        }
+        
+        // 等待后重试
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
       }
-    } catch (error) {
-      console.error('AI enrichment failed:', error);
-      // AI失败时保留原条目，添加提示信息
-      entries.forEach(entry => {
-        entry.translation = entry.translation || '（AI补全失败）';
-        entry.explanation = entry.explanation || '请手动补充该词条信息';
-      });
     }
   },
   
@@ -2817,8 +3257,16 @@ ${wordsList}
   
   // 渲染单个条目卡片
   renderEntryCard(entry, type) {
+    // 安全检查：确保 entry 和 entry.id 存在
+    if (!entry || !entry.id) {
+      console.error('Invalid entry object:', entry);
+      return '';
+    }
+    
     const isGerman = this.currentModule === 'german';
     const isEnglish = this.currentModule === 'english';
+    const isBatchMode = this.batchMode[type];
+    const isSelected = this.selectedEntries[type].has(entry.id);
     
     let typeBadge = '';
     if (type === 'word') {
@@ -2833,30 +3281,49 @@ ${wordsList}
       typeBadge = `<span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">语句</span>`;
     }
     
+    // 批量模式下显示复选框
+    const checkboxHtml = isBatchMode ? `
+      <div class="mr-3 pt-1">
+        <input type="checkbox" 
+               id="checkbox-${type}-${entry.id}" 
+               ${isSelected ? 'checked' : ''} 
+               onclick="app.toggleEntrySelection('${type}', ${entry.id})"
+               class="w-5 h-5 rounded border-primary-300 text-accent-600 focus:ring-accent-500 cursor-pointer">
+      </div>
+    ` : '';
+    
+    // 非批量模式下显示编辑/删除按钮
+    const actionsHtml = !isBatchMode ? `
+      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onclick="app.editEntry(${JSON.stringify(entry.id).replace(/"/g, '&quot;')})" class="p-2 hover:bg-primary-200 rounded-lg" title="编辑">
+          <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+          </svg>
+        </button>
+        <button onclick="app.deleteEntry(${JSON.stringify(entry.id).replace(/"/g, '&quot;')})" class="p-2 hover:bg-red-100 rounded-lg" title="删除">
+          <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+        </button>
+      </div>
+    ` : '';
+    
     return `
-      <div class="p-4 hover:bg-primary-50 transition-colors group" id="entry-${entry.id}">
+      <div class="p-4 hover:bg-primary-50 transition-colors group ${isSelected ? 'bg-accent-50' : ''}" id="entry-${entry.id}">
         <div class="flex justify-between items-start gap-4">
-          <div class="flex-1">
-            <div class="flex items-center gap-2 mb-1 flex-wrap">
-              ${typeBadge}
-              <span class="text-lg font-bold text-primary-900">${entry.original}</span>
+          <div class="flex items-start flex-1">
+            ${checkboxHtml}
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                ${typeBadge}
+                <span class="text-lg font-bold text-primary-900">${entry.original}</span>
+              </div>
+              <div class="text-primary-700 mb-2">${entry.translation || '<span class="text-gray-400">暂无翻译</span>'}</div>
+              ${entry.explanation ? `<div class="text-sm text-primary-500 mb-1">💡 ${entry.explanation}</div>` : ''}
+              ${entry.example ? `<div class="text-sm text-accent-600">📖 ${entry.example}</div>` : ''}
             </div>
-            <div class="text-primary-700 mb-2">${entry.translation || '<span class="text-gray-400">暂无翻译</span>'}</div>
-            ${entry.explanation ? `<div class="text-sm text-primary-500 mb-1">💡 ${entry.explanation}</div>` : ''}
-            ${entry.example ? `<div class="text-sm text-accent-600">📖 ${entry.example}</div>` : ''}
           </div>
-          <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onclick="app.editEntry('${entry.id}')" class="p-2 hover:bg-primary-200 rounded-lg" title="编辑">
-              <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-              </svg>
-            </button>
-            <button onclick="app.deleteEntry('${entry.id}')" class="p-2 hover:bg-red-100 rounded-lg" title="删除">
-              <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
-            </button>
-          </div>
+          ${actionsHtml}
         </div>
       </div>
     `;
@@ -2951,8 +3418,133 @@ ${wordsList}
   // 删除条目
   async deleteEntry(entryId) {
     if (!confirm('确定要删除这个条目吗？')) return;
-    await db.entries.delete(entryId);
-    this.loadEntries();
+    
+    console.log('Deleting entry:', entryId);
+    
+    try {
+      // 检查 entryId 是否有效
+      if (!entryId || entryId === 'undefined') {
+        console.error('Invalid entryId:', entryId);
+        alert('删除失败：条目ID无效');
+        return;
+      }
+      
+      // 尝试获取条目确认存在
+      const entry = await db.entries.get(entryId);
+      if (!entry) {
+        console.error('Entry not found:', entryId);
+        alert('删除失败：条目不存在或已被删除');
+        return;
+      }
+      
+      await db.entries.delete(entryId);
+      console.log('Entry deleted successfully:', entryId);
+      this.loadEntries();
+    } catch (error) {
+      console.error('Delete entry failed:', error);
+      alert('删除失败: ' + error.message);
+    }
+  },
+  
+  // 切换批量选择模式
+  toggleBatchMode(type) {
+    this.batchMode[type] = !this.batchMode[type];
+    
+    const batchBtn = document.getElementById(`${type}s-batch-btn`);
+    const deleteBtn = document.getElementById(`${type}s-delete-btn`);
+    const selectionInfo = document.getElementById(`${type}s-selection-info`);
+    
+    if (this.batchMode[type]) {
+      // 开启批量模式
+      batchBtn.textContent = '☑ 取消选择';
+      batchBtn.classList.add('bg-accent-100', 'text-accent-700');
+      deleteBtn.classList.remove('hidden');
+      selectionInfo.classList.remove('hidden');
+    } else {
+      // 关闭批量模式
+      batchBtn.textContent = '☐ 批量选择';
+      batchBtn.classList.remove('bg-accent-100', 'text-accent-700');
+      deleteBtn.classList.add('hidden');
+      selectionInfo.classList.add('hidden');
+      
+      // 清空选择
+      this.selectedEntries[type].clear();
+      this.updateSelectionCount(type);
+    }
+    
+    // 重新渲染列表显示复选框
+    this.renderEntriesPage(type);
+  },
+  
+  // 切换条目选择状态
+  toggleEntrySelection(type, entryId) {
+    const selected = this.selectedEntries[type];
+    
+    if (selected.has(entryId)) {
+      selected.delete(entryId);
+    } else {
+      selected.add(entryId);
+    }
+    
+    this.updateSelectionCount(type);
+    
+    // 更新复选框状态
+    const checkbox = document.getElementById(`checkbox-${type}-${entryId}`);
+    if (checkbox) {
+      checkbox.checked = selected.has(entryId);
+    }
+  },
+  
+  // 更新选择计数显示
+  updateSelectionCount(type) {
+    const count = this.selectedEntries[type].size;
+    const countEl = document.getElementById(`${type}s-selected-count`);
+    const deleteBtn = document.getElementById(`${type}s-delete-btn`);
+    
+    if (countEl) countEl.textContent = count;
+    
+    // 有选中时显示删除按钮
+    if (deleteBtn) {
+      if (count > 0) {
+        deleteBtn.classList.remove('hidden');
+      } else {
+        deleteBtn.classList.add('hidden');
+      }
+    }
+  },
+  
+  // 批量删除条目
+  async batchDeleteEntries(type) {
+    const selected = this.selectedEntries[type];
+    
+    if (selected.size === 0) {
+      alert('请先选择要删除的条目');
+      return;
+    }
+    
+    if (!confirm(`确定要删除选中的 ${selected.size} 个${type === 'word' ? '单词' : type === 'phrase' ? '短语' : '语句'}吗？`)) {
+      return;
+    }
+    
+    try {
+      let deletedCount = 0;
+      for (const entryId of selected) {
+        await db.entries.delete(entryId);
+        deletedCount++;
+      }
+      
+      // 清空选择
+      selected.clear();
+      this.updateSelectionCount(type);
+      
+      // 刷新列表
+      await this.loadEntries();
+      
+      alert(`✅ 已删除 ${deletedCount} 个条目`);
+    } catch (error) {
+      console.error('Batch delete failed:', error);
+      alert('批量删除失败: ' + error.message);
+    }
   },
   
   // 查重并删除重复条目（按字母顺序排序）
@@ -3613,16 +4205,23 @@ ${selectedEntries.map((e, i) => `${i+1}. ${e.original} - ${e.translation}`).join
 2. 语法结构：选择正确的介词搭配或句型
 3. 上下文理解：根据例句语境选择合适的表达
 
-要求：
-- 四个选项 A/B/C/D
-- 干扰选项要具有迷惑性，如：错误的词形变化（如：错误的格/性、时态、单复数）、近义词混淆、相似拼写等
-- 正确答案字母随机
+重要规则（必须遵守）：
+- 四个选项 A/B/C/D 必须互不相同，绝对禁止重复
+- 只有且仅有一个正确答案，其他三个干扰项必须在逻辑上错误
+- 干扰项要有迷惑性（如：错误的词形变化、近义词混淆、相似拼写），但不能和正确答案相同
+- 干扰项必须语法上说得通（符合词性、时态规则），只是语义或搭配错误
+- 正确答案字母随机分布
 - 如果条目是名词，可以考虑性别变化的题目
 - 如果条目是动词，可以考虑时态或分词的题目
 
-例子（仅供参考，题型可更灵活）：
-- "Sie leidet seit Monaten an _____" (Depressionen/Depression/Depressione/Depressiv) → 正确答案：Depressionen
-- "Er hat viel _____ um die Prüfung" (Sorgen/Sorge/Sorgt/Sorg) → 正确答案：Sorgen`,
+禁止的错误示例：
+- 选项重复（如 A. apple / B. apple / C. orange）
+- 两个正确答案（如 "apple" 和 "the apple" 同时正确）
+- 干扰项和题目无关（如题目是水果，干扰项是动词）
+
+良好示例：
+- "Sie leidet seit Monaten an _____" (A. Depressionen / B. Depression / C. Depressione / D. Depressiv) → 正确答案：A
+- "Er hat viel _____ um die Prüfung" (A. Sorgen / B. Sorge / C. Sorgt / D. Sorg) → 正确答案：A`,
       fill: `生成${count}道填空题。要求：
 - 优先使用条目中的例句
 - 将关键词替换为_____，在句子结尾用（）标注该词的中文意思
@@ -3671,7 +4270,7 @@ ${typePrompts[type]}
           { role: 'user', content: prompt }
         ],
         temperature: 0.3,
-        max_tokens: 4000
+        max_tokens: settings.maxTokens || 8000
       })
     });
     
@@ -3794,7 +4393,13 @@ Generate a JSON array of questions with this format:
 Requirements:
 - Include ${types.join(', ')} question types
 - Questions should test understanding of the materials
-- Provide detailed explanations for each answer`;
+- Provide detailed explanations for each answer
+- IMPORTANT for choice questions:
+  - All four options (A, B, C, D) must be DISTINCT and different from each other
+  - Only ONE correct answer; distractors must be logically incorrect but grammatically plausible
+  - Distractors should be tempting but clearly wrong upon analysis
+  - Options should be relevant to the question context
+  - Avoid contradictory or nonsensical distractors`;
 
     const response = await fetch(`${settings.apiUrl}/chat/completions`, {
       method: 'POST',
@@ -4394,6 +4999,7 @@ Requirements:
     document.getElementById('setting-api-url').value = settings.apiUrl;
     document.getElementById('setting-api-key').value = settings.apiKey || '';
     document.getElementById('setting-model').value = settings.model;
+    document.getElementById('setting-max-tokens').value = settings.maxTokens;
     document.getElementById('setting-daily-limit').value = settings.dailyLimit;
     document.getElementById('setting-proxy-url').value = settings.proxyUrl;
     document.getElementById('settings-modal').classList.remove('hidden');
@@ -4407,6 +5013,7 @@ Requirements:
     await db.settings.put({ id: 'apiUrl', value: document.getElementById('setting-api-url').value });
     await db.settings.put({ id: 'apiKey', value: document.getElementById('setting-api-key').value });
     await db.settings.put({ id: 'model', value: document.getElementById('setting-model').value });
+    await db.settings.put({ id: 'maxTokens', value: parseInt(document.getElementById('setting-max-tokens').value) || 8000 });
     await db.settings.put({ id: 'dailyLimit', value: parseInt(document.getElementById('setting-daily-limit').value) || 20 });
     await db.settings.put({ id: 'proxyUrl', value: document.getElementById('setting-proxy-url').value.trim() || 'https://polylingo-proxy.vercel.app' });
     
@@ -4415,10 +5022,11 @@ Requirements:
   },
   
   async getSettings() {
-    const [apiUrl, apiKey, model, dailyLimit, proxyUrl] = await Promise.all([
+    const [apiUrl, apiKey, model, maxTokens, dailyLimit, proxyUrl] = await Promise.all([
       db.settings.get('apiUrl'),
       db.settings.get('apiKey'),
       db.settings.get('model'),
+      db.settings.get('maxTokens'),
       db.settings.get('dailyLimit'),
       db.settings.get('proxyUrl')
     ]);
@@ -4427,6 +5035,7 @@ Requirements:
       apiUrl: (apiUrl && apiUrl.value) || 'https://api.openai.com/v1',
       apiKey: (apiKey && apiKey.value) || '',
       model: (model && model.value) || 'gpt-3.5-turbo',
+      maxTokens: (maxTokens && maxTokens.value) || 8000,
       dailyLimit: (dailyLimit && dailyLimit.value) || 20,
       proxyUrl: (proxyUrl && proxyUrl.value) || 'https://polylingo-proxy.vercel.app'
     };
@@ -4562,6 +5171,14 @@ Requirements:
       await this.loadModuleMaterials();
       await this.updateSidebarStats();
     }
+  },
+  
+  // 辅助方法：HTML转义，防止XSS
+  escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   },
   
   // Custom Module Functions

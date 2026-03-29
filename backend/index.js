@@ -42,6 +42,9 @@ app.get('/', (req, res) => {
       '/api/guardian/rss - Get The Guardian RSS feed (English)',
       '/api/guardian/rss?category=world - Category: world|uk|us|business|science|technology|culture',
       '/api/guardian/article?url=XXX - Get Guardian article content',
+      '/api/yahoojapan/rss - Get Yahoo!ニュース RSS feed (Japanese)',
+      '/api/yahoojapan/rss?category=domestic - Category: domestic|world|business|entertainment|sports|it',
+      '/api/yahoojapan/article?url=XXX - Get Yahoo Japan article content',
       '/api/proxy?url=XXX - Generic proxy'
     ]
   });
@@ -464,6 +467,147 @@ app.get('/api/npr/article', async (req, res) => {
     
   } catch (error) {
     console.error('NPR article fetch error:', error.message);
+    console.error('Error details:', error.response?.status, error.response?.statusText);
+    res.status(500).json({ 
+      error: 'Failed to fetch article',
+      message: error.message,
+      status: error.response?.status,
+      url
+    });
+  }
+});
+
+// Get Yahoo Japan News RSS feed (Japanese)
+app.get('/api/yahoojapan/rss', async (req, res) => {
+  try {
+    const { category = 'domestic' } = req.query;
+    
+    // Yahoo Japan News RSS feeds - very reliable
+    const rssMap = {
+      'domestic': 'https://news.yahoo.co.jp/rss/categories/domestic.xml',     // 国内
+      'world': 'https://news.yahoo.co.jp/rss/categories/world.xml',           // 国際
+      'business': 'https://news.yahoo.co.jp/rss/categories/business.xml',     // 経済
+      'entertainment': 'https://news.yahoo.co.jp/rss/categories/entertainment.xml', // エンタメ
+      'sports': 'https://news.yahoo.co.jp/rss/categories/sports.xml',         // スポーツ
+      'it': 'https://news.yahoo.co.jp/rss/categories/it.xml'                  // IT・科学
+    };
+    
+    const validCategories = Object.keys(rssMap);
+    const cat = validCategories.includes(category) ? category : 'domestic';
+    const rssUrl = rssMap[cat];
+    
+    console.log('Fetching Yahoo Japan RSS:', rssUrl);
+    
+    const response = await axios.get(rssUrl, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        'Accept-Language': 'ja-JP,ja;q=0.9'
+      }
+    });
+    
+    console.log('Yahoo Japan RSS fetched successfully, size:', response.data.length);
+    
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.send(response.data);
+  } catch (error) {
+    console.error('Yahoo Japan RSS Error:', error.message);
+    console.error('Error details:', error.response?.status, error.response?.statusText);
+    res.status(500).json({ 
+      error: 'Failed to fetch Yahoo Japan RSS',
+      message: error.message,
+      status: error.response?.status
+    });
+  }
+});
+
+// Get Yahoo Japan article content (redirects to original news source)
+app.get('/api/yahoojapan/article', async (req, res) => {
+  const { url } = req.query;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter is required' });
+  }
+  
+  console.log('Fetching Yahoo Japan article:', url);
+  
+  try {
+    // Yahoo News links redirect to original news sources
+    // First, we need to follow the redirect to get the actual article URL
+    const headResponse = await axios.head(url, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'ja-JP,ja;q=0.9'
+      },
+      maxRedirects: 5
+    });
+    
+    const finalUrl = headResponse.request.res.responseUrl || url;
+    console.log('Final article URL:', finalUrl);
+    
+    // Fetch the actual article
+    const response = await axios.get(finalUrl, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'ja-JP,ja;q=0.9'
+      },
+      maxRedirects: 5
+    });
+    
+    const $ = cheerio.load(response.data);
+    
+    // Extract article content
+    const title = $('h1').first().text().trim() || $('meta[property="og:title"]').attr('content');
+    
+    // Try different selectors for Japanese news article content
+    let content = '';
+    const contentSelectors = [
+      // Yahoo News specific
+      '.articleBody p',
+      '.newsArticle p',
+      '.paragraph',
+      // General Japanese news sites
+      'article p',
+      '.article-content p',
+      '.content p',
+      'main p',
+      // Fallbacks
+      '[class*="article"] p',
+      '[class*="content"] p'
+    ];
+    
+    for (const selector of contentSelectors) {
+      const elements = $(selector);
+      if (elements.length > 0) {
+        content = elements.map((i, el) => $(el).text().trim()).get().join('\n\n');
+        if (content.length > 200) break;
+      }
+    }
+    
+    // Also try to get summary/description if content is short
+    if (content.length < 100) {
+      const metaDesc = $('meta[name="description"]').attr('content') || 
+                       $('meta[property="og:description"]').attr('content');
+      if (metaDesc) content = metaDesc;
+    }
+    
+    console.log('Yahoo Japan article parsed:', { title: title?.substring(0, 50), contentLength: content.length });
+    
+    res.json({
+      title,
+      content: content.substring(0, 5000),
+      url: finalUrl,
+      source: 'Yahoo!ニュース'
+    });
+    
+  } catch (error) {
+    console.error('Yahoo Japan article fetch error:', error.message);
     console.error('Error details:', error.response?.status, error.response?.statusText);
     res.status(500).json({ 
       error: 'Failed to fetch article',
