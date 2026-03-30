@@ -242,7 +242,7 @@ const app = {
           <span class="fi fi-${mod.flag || 'un'} w-8 h-6 rounded shadow-sm"></span>
           <div class="text-left">
             <div class="font-medium">${mod.name}</div>
-            <div class="text-xs text-primary-400" id="${mod.id}-count">0 语料</div>
+            <div class="text-xs text-primary-400" id="${mod.id}-count">0 条目</div>
           </div>
         `;
         navContainer.appendChild(btn);
@@ -272,12 +272,15 @@ const app = {
           <h4 class="text-xl font-bold mb-1">${mod.name}</h4>
           <p class="text-sm text-primary-500 mb-3">${mod.language}</p>
           <div class="flex items-center justify-between text-sm">
-            <span class="text-primary-600"><span id="${mod.id}-materials">0</span> 语料</span>
+            <span class="text-primary-600"><span id="${mod.id}-entries">0</span> 条目</span>
             <span class="text-accent-600"><span id="${mod.id}-due">0</span> 待复习</span>
           </div>
           <div class="mt-4 w-full bg-primary-100 rounded-full h-2">
             <div id="${mod.id}-bar" class="bg-primary-600 h-2 rounded-full transition-all" style="width: 0%"></div>
           </div>
+          <button onclick="event.stopPropagation(); app.deleteModule('${mod.id}')" class="mt-3 w-full px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm transition-colors">
+            删除模块
+          </button>
         `;
         dashboardCards.appendChild(card);
       });
@@ -402,7 +405,7 @@ ${placeholderText}`;
       const reviewedEntries = entries.filter(e => e.srsLevel > 0);
       
       document.getElementById(`${mod.id}-count`).textContent = `${entries.length} 条目`;
-      document.getElementById(`${mod.id}-materials`).textContent = materials.length;
+      document.getElementById(`${mod.id}-entries`).textContent = entries.length;
       document.getElementById(`${mod.id}-due`).textContent = dueEntries.length;
       
       const progress = entries.length > 0 ? Math.round((reviewedEntries.length / entries.length) * 100) : 0;
@@ -5207,7 +5210,7 @@ Requirements:
     
     // Calculate stats
     const records = await db.records.toArray();
-    const materials = await db.materials.toArray();
+    const entries = await db.entries.toArray();
     const tests = await db.tests.toArray();
     
     // Total time
@@ -5218,8 +5221,8 @@ Requirements:
     const uniqueDates = new Set(records.map(r => new Date(r.createdAt).toDateString()));
     document.getElementById('stat-total-days').textContent = `${uniqueDates.size}天`;
     
-    // Total materials
-    document.getElementById('stat-total-materials').textContent = materials.length;
+    // Total entries
+    document.getElementById('stat-total-entries').textContent = entries.length;
     
     // Average test score
     const avgScore = tests.length > 0 ? 
@@ -5755,9 +5758,9 @@ Requirements:
     
     // Module counts - update all including custom
     for (const key in this.modules) {
-      const count = await db.materials.where('moduleId').equals(key).count();
+      const count = await db.entries.where('moduleId').equals(key).count();
       const countEl = document.getElementById(`${key}-count`);
-      if (countEl) countEl.textContent = `${count} 语料`;
+      if (countEl) countEl.textContent = `${count} 条目`;
     }
   },
   
@@ -5931,12 +5934,15 @@ Requirements:
         <h4 class="text-xl font-bold mb-1">${mod.name}</h4>
         <p class="text-sm text-primary-500 mb-3">${mod.language}</p>
         <div class="flex items-center justify-between text-sm">
-          <span class="text-primary-600"><span id="${mod.id}-materials">0</span> 语料</span>
+          <span class="text-primary-600"><span id="${mod.id}-entries">0</span> 条目</span>
           <span class="text-accent-600"><span id="${mod.id}-due">0</span> 待复习</span>
         </div>
         <div class="mt-4 w-full bg-primary-100 rounded-full h-2">
           <div id="${mod.id}-bar" class="bg-primary-600 h-2 rounded-full transition-all" style="width: 0%"></div>
         </div>
+        <button onclick="event.stopPropagation(); app.deleteModule('${mod.id}')" class="mt-3 w-full px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm transition-colors">
+          删除模块
+        </button>
       `;
       dashboardCards.appendChild(card);
     }
