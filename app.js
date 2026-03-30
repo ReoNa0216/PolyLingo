@@ -856,14 +856,16 @@ ${placeholderText}`;
    - 纯平假名单词：保持原样
    - 词性详细标注：他动词·五段/一段、自动词·五段/一段、名词、形容动词、形容词等
    
-3. 【短语 phrase】分类处理：
-   - 含汉字的短语：整体标注读音，如"日本語(にほんご)"
+3. 【短语 phrase】分类处理（必须注音）：
+   - 含汉字的短语：每个汉字都要注音，如"日本語(にほんご)"、"ご覧(ごろん)に入(い)る"
    - 片假名短语：标注外来语原文
+   - 禁止：不注音的汉字，如"日本語"❌ 必须是"日本語(にほんご)"✅
    
-4. 【语句 sentence】：
-   - 复合词整体标注：如"大人(おとな)"、"引き付ける(ひきつける)"
+4. 【语句 sentence】（必须注音）：
+   - 所有汉字必须注音，复合词整体标注：如"私(わたし)は大人(おとな)です"
    - 不要逐字拆开注音
-   - 只需要：原文（带注音）、中文翻译
+   - 禁止不注音的汉字出现在语句中
+   - 只需要：原文（所有汉字带注音）、中文翻译
 
 必须注音的汉字示例（无一例外）：
 - "随分(ずいぶん)" → 副词，表示"相当、很"
@@ -910,12 +912,12 @@ ${chunk.substring(0, 5000)}
 
 请返回JSON格式，每个条目包含以下字段：
 - type: 条目类型 ("word" | "phrase" | "sentence")
-- original: 原文（${mod.language}文本，不含中文）
+- original: 原文（${mod.language}文本，不含中文）${isJapanese ? '【日语必须给所有汉字注音，格式"汉字(ひらがな)"，包括word/phrase/sentence】' : ''}
 - translation: 中文翻译
 - wordType: 词的类型（仅word类型需要）
 - gender: 性别标记（德语：m./f./n./pl.；其他语言留空）
 - explanation: 用法解释（word和phrase需要，sentence可为空）
-- example: 例句（word和phrase需要，sentence可为空，可由AI生成）
+- example: 例句（word和phrase需要，sentence可为空，可由AI生成）${isJapanese ? '【日语例句中的汉字必须给出注音】' : ''}
 
 示例输出：
 [${isGerman ? `{
@@ -2395,15 +2397,31 @@ ${chunk.substring(0, 8000)}
         console.log('无法获取完整内容，使用简介');
       }
       
+      // 解析日期
+      let dateStr = selectedArticle.pubDate;
+      try {
+        const pubDate = new Date(selectedArticle.pubDate);
+        if (!isNaN(pubDate)) {
+          dateStr = pubDate.toLocaleDateString('zh-CN');
+        }
+      } catch (e) {
+        // 保持原始日期字符串
+      }
+      
       this.zdfCurrentArticle = {
         title: selectedArticle.title,
         content: fullContent,
         link: selectedArticle.link,
+        pubDate: dateStr,
         source: 'ZDF Heute'
       };
       
       // 显示预览
-      contentDiv.textContent = `标题：${selectedArticle.title}\n\n内容：${fullContent.substring(0, 500)}...`;
+      contentDiv.innerHTML = `
+        <div class="font-bold mb-1">${selectedArticle.title}</div>
+        <div class="text-xs text-amber-600 mb-2">📅 发布日期：${dateStr}</div>
+        <div class="text-gray-600">${fullContent.substring(0, 500)}...</div>
+      `;
       preview.classList.remove('hidden');
       status.textContent = '获取成功！';
       
