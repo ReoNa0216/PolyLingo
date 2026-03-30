@@ -428,7 +428,7 @@ ${placeholderText}`;
           <span class="text-lg">${this.getActionIcon(r.action)}</span>
           <div>
             <div class="font-medium">${this.getActionText(r.action)}</div>
-            <div class="text-xs text-primary-500">${(this.modules[r.moduleId] && this.modules[r.moduleId].name) || '交叉学习'}</div>
+            <div class="text-xs text-primary-500">${(this.modules[r.moduleId] && this.modules[r.moduleId].name) || '混合'}</div>
           </div>
         </div>
         <div class="flex items-center gap-3">
@@ -3940,32 +3940,59 @@ ${wordsList}
       allEntries = await db.entries.filter(e => new Date(e.nextReview) <= new Date()).toArray();
     }
     
-    // 按类型分类
-    const words = allEntries.filter(e => e.type === 'word');
-    const phrases = allEntries.filter(e => e.type === 'phrase');
-    const sentences = allEntries.filter(e => e.type === 'sentence');
-    
     // 获取每日复习限制
     const settings = await db.settings.get('dailyLimit');
     const totalLimit = (settings && settings.value) || 20;
     
-    // 分配比例：单词70%，短语20%，语句10%
-    const wordLimit = Math.floor(totalLimit * 0.7);
-    const phraseLimit = Math.floor(totalLimit * 0.2);
-    const sentenceLimit = totalLimit - wordLimit - phraseLimit;
-    
-    // 随机打乱后抽取各类型条目
-    const shuffle = arr => arr.sort(() => 0.5 - Math.random());
-    const selectedWords = shuffle([...words]).slice(0, wordLimit);
-    const selectedPhrases = shuffle([...phrases]).slice(0, phraseLimit);
-    const selectedSentences = shuffle([...sentences]).slice(0, sentenceLimit);
-    
-    // 合并并打乱顺序
-    this.reviewQueue = shuffle([
-      ...selectedWords,
-      ...selectedPhrases,
-      ...selectedSentences
-    ]);
+    if (this.currentModule) {
+      // 单个模块复习：按类型分配（单词70%，短语20%，语句10%）
+      const words = allEntries.filter(e => e.type === 'word');
+      const phrases = allEntries.filter(e => e.type === 'phrase');
+      const sentences = allEntries.filter(e => e.type === 'sentence');
+      
+      const wordLimit = Math.floor(totalLimit * 0.7);
+      const phraseLimit = Math.floor(totalLimit * 0.2);
+      const sentenceLimit = totalLimit - wordLimit - phraseLimit;
+      
+      const shuffle = arr => arr.sort(() => 0.5 - Math.random());
+      const selectedWords = shuffle([...words]).slice(0, wordLimit);
+      const selectedPhrases = shuffle([...phrases]).slice(0, phraseLimit);
+      const selectedSentences = shuffle([...sentences]).slice(0, sentenceLimit);
+      
+      this.reviewQueue = shuffle([
+        ...selectedWords,
+        ...selectedPhrases,
+        ...selectedSentences
+      ]);
+    } else {
+      // 混合复习：按语言平均分配
+      const modules = ['german', 'japanese', 'english'];
+      const perModuleLimit = Math.floor(totalLimit / modules.length);
+      
+      const shuffle = arr => arr.sort(() => 0.5 - Math.random());
+      let selectedEntries = [];
+      
+      modules.forEach(moduleId => {
+        const moduleEntries = allEntries.filter(e => e.moduleId === moduleId);
+        const words = moduleEntries.filter(e => e.type === 'word');
+        const phrases = moduleEntries.filter(e => e.type === 'phrase');
+        const sentences = moduleEntries.filter(e => e.type === 'sentence');
+        
+        // 每个语誊内部也按类型分配
+        const wordLimit = Math.floor(perModuleLimit * 0.7);
+        const phraseLimit = Math.floor(perModuleLimit * 0.2);
+        const sentenceLimit = perModuleLimit - wordLimit - phraseLimit;
+        
+        const selectedWords = shuffle([...words]).slice(0, wordLimit);
+        const selectedPhrases = shuffle([...phrases]).slice(0, phraseLimit);
+        const selectedSentences = shuffle([...sentences]).slice(0, sentenceLimit);
+        
+        selectedEntries.push(...selectedWords, ...selectedPhrases, ...selectedSentences);
+      });
+      
+      // 打乱顺序
+      this.reviewQueue = shuffle(selectedEntries).slice(0, totalLimit);
+    }
     
     this.currentReviewIndex = 0;
     
@@ -4101,11 +4128,41 @@ ${wordsList}
     this.showCurrentCard();
   },
   
-  finishReview() {
+  async finishReview() {
     // 停止计时并获取实际学习时长
     const duration = this.stopStudyTimer();
+    
     if (duration > 0) {
-      this.recordActivity('review', duration);
+      if (this.currentModule) {
+        // 单个模块复习：记录到当前模块
+        await this.recordActivity('review', duration);
+      } else {
+        // 混合复习：按语言分配时间
+        const moduleCounts = {};
+        this.reviewQueue.forEach(e => {
+          moduleCounts[e.moduleId] = (moduleCounts[e.moduleId] || 0) + 1;
+        });
+        
+        const total = this.reviewQueue.length;
+        const date = new Date().toISOString().split('T')[0];
+        
+        // 为每个模块记录对应比例的时间
+        for (const [moduleId, count] of Object.entries(moduleCounts)) {
+          const moduleDuration = Math.round(duration * (count / total));
+          if (moduleDuration > 0) {
+            await db.records.put({
+              id: `record_${Date.now()}_${moduleId}`,
+              date: date,
+              moduleId: moduleId,
+              duration: moduleDuration,
+              action: 'review',
+              createdAt: new Date()
+            });
+          }
+        }
+        
+        await this.updateSidebarStats();
+      }
     }
     alert(`恭喜完成 ${this.reviewQueue.length} 个学习条目的复习！本次学习时长：${duration}分钟`);
     this.loadDashboard();
