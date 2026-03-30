@@ -3209,8 +3209,9 @@ ${wordsList}
     // 中文引号在JSON字符串中会导致解析失败
     let fixed = jsonStr;
     
-    // 将中文左双引号\u201c(上双引号) 和 右双引号\u201d(下双引号) 替换为转义的ASCII引号
-    fixed = fixed.replace(/\\u201c/g, '\\"').replace(/\\u201d/g, '\\"');
+    // 将中文左双引号"(上双引号) 和 右双引号"(下双引号) 替换为转义的ASCII引号
+    // Unicode: \u201c = 左双引号, \u201d = 右双引号
+    fixed = fixed.replace(/["“”]/g, '\\"');
     
     return fixed;
   },
