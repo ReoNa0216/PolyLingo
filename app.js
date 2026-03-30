@@ -50,6 +50,11 @@ const app = {
   studyStartTime: null,
   studyTimer: null,
   currentStudyMinutes: 0,
+  
+  // 混合复习时按语言分别计时
+  moduleStudyTimes: {}, // { moduleId: minutes }
+  currentCardStartTime: null,
+  currentCardModuleId: null,
   fetchedGuardianFeeds: [], // 已获取的Guardian文章链接
   guardianCategory: 'world', // 默认栏目: world|uk|us|business|science|technology|culture
   
@@ -3996,7 +4001,7 @@ ${wordsList}
     
     this.currentReviewIndex = 0;
     
-    console.log(`Review queue: ${selectedWords.length} words, ${selectedPhrases.length} phrases, ${selectedSentences.length} sentences`);
+    console.log(`Review queue: ${this.reviewQueue.length} entries`);
     
     if (this.reviewQueue.length === 0) {
       alert('当前没有需要复习的内容！请先上传学习材料并等待AI处理。');
@@ -4021,6 +4026,20 @@ ${wordsList}
     }
     
     const entry = this.reviewQueue[this.currentReviewIndex];
+    
+    // 记录前一个卡片的学习时间（如果有）
+    if (this.currentCardStartTime && this.currentCardModuleId) {
+      const cardDuration = Math.floor((Date.now() - this.currentCardStartTime) / 60000);
+      if (cardDuration > 0) {
+        this.moduleStudyTimes[this.currentCardModuleId] = 
+          (this.moduleStudyTimes[this.currentCardModuleId] || 0) + cardDuration;
+      }
+    }
+    
+    // 开始记录当前卡片
+    this.currentCardStartTime = Date.now();
+    this.currentCardModuleId = entry.moduleId;
+    
     document.getElementById('review-progress').textContent = `${this.currentReviewIndex + 1}/${this.reviewQueue.length}`;
     
     // 类型标签
@@ -4129,6 +4148,15 @@ ${wordsList}
   },
   
   async finishReview() {
+    // 记录当前正在复习的卡片时间
+    if (this.currentCardStartTime && this.currentCardModuleId) {
+      const cardDuration = Math.floor((Date.now() - this.currentCardStartTime) / 60000);
+      if (cardDuration > 0) {
+        this.moduleStudyTimes[this.currentCardModuleId] = 
+          (this.moduleStudyTimes[this.currentCardModuleId] || 0) + cardDuration;
+      }
+    }
+    
     // 停止计时并获取实际学习时长
     const duration = this.stopStudyTimer();
     
@@ -4137,18 +4165,12 @@ ${wordsList}
         // 单个模块复习：记录到当前模块
         await this.recordActivity('review', duration);
       } else {
-        // 混合复习：按语言分配时间
-        const moduleCounts = {};
-        this.reviewQueue.forEach(e => {
-          moduleCounts[e.moduleId] = (moduleCounts[e.moduleId] || 0) + 1;
-        });
-        
-        const total = this.reviewQueue.length;
+        // 混合复习：按实际学习时间分配到各语言
         const date = new Date().toISOString().split('T')[0];
+        const moduleTimes = this.moduleStudyTimes || {};
         
-        // 为每个模块记录对应比例的时间
-        for (const [moduleId, count] of Object.entries(moduleCounts)) {
-          const moduleDuration = Math.round(duration * (count / total));
+        // 为每个模块记录实际学习时间
+        for (const [moduleId, moduleDuration] of Object.entries(moduleTimes)) {
           if (moduleDuration > 0) {
             await db.records.put({
               id: `record_${Date.now()}_${moduleId}`,
@@ -4164,6 +4186,12 @@ ${wordsList}
         await this.updateSidebarStats();
       }
     }
+    
+    // 重置卡片计时
+    this.currentCardStartTime = null;
+    this.currentCardModuleId = null;
+    this.moduleStudyTimes = {};
+    
     alert(`恭喜完成 ${this.reviewQueue.length} 个学习条目的复习！本次学习时长：${duration}分钟`);
     this.loadDashboard();
   },
@@ -5640,6 +5668,10 @@ Requirements:
   startStudyTimer() {
     this.studyStartTime = Date.now();
     this.currentStudyMinutes = 0;
+    
+    // 初始化各语言模块计时
+    this.moduleStudyTimes = {};
+    this.currentCardStartTime = Date.now();
     
     // 清除之前的计时器
     if (this.studyTimer) {
