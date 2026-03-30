@@ -203,6 +203,11 @@
       margin: 1em 0;
     }
     
+    /* Prompt Preview Styles */
+    .prompt-type-word { border-left: 3px solid #3b82f6; }
+    .prompt-type-phrase { border-left: 3px solid #22c55e; }
+    .prompt-type-sentence { border-left: 3px solid #a855f7; }
+    
     /* Streak Animation */
     @keyframes pulse-fire {
       0%, 100% { transform: scale(1); }
@@ -750,10 +755,44 @@
           <label class="block text-sm font-medium text-primary-700 mb-2">缩写代码</label>
           <input type="text" id="new-module-code" placeholder="例如：KR" maxlength="3" class="w-full px-4 py-2 border border-primary-200 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent">
         </div>
-        <div>
-          <label class="block text-sm font-medium text-primary-700 mb-2">AI提取要求（可选）</label>
-          <textarea id="new-module-prompt" rows="3" placeholder="用自然语言告诉AI您想提取什么内容，例如：&#10;• 提取韩语名词，标注汉字和助词搭配&#10;• 专门提取医学术语，包括词根来源&#10;• 提取日常对话中的实用短语" class="w-full px-4 py-2 border border-primary-200 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent text-sm"></textarea>
-          <p class="text-xs text-primary-400 mt-1">支持自然语言描述，系统会自动处理成技术指令。留空则使用默认提取逻辑。</p>
+        <!-- AI提取要求配置 -->
+        <div class="border-t border-primary-200 pt-4">
+          <label class="block text-sm font-medium text-primary-700 mb-2">AI提取要求配置（可选）</label>
+          <p class="text-xs text-primary-500 mb-3">分别描述对三类条目的提取要求，系统将生成标准化Prompt，您可以预览并修改</p>
+          
+          <div class="space-y-3">
+            <div class="bg-blue-50 rounded-lg p-3">
+              <label class="block text-xs font-medium text-blue-700 mb-1">📖 单词（word）提取要求</label>
+              <textarea id="new-module-word-prompt" rows="2" placeholder="例如：提取韩语名词和动词，标注汉字词源和助词搭配" class="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"></textarea>
+            </div>
+            
+            <div class="bg-green-50 rounded-lg p-3">
+              <label class="block text-xs font-medium text-green-700 mb-1">📗 短语（phrase）提取要求</label>
+              <textarea id="new-module-phrase-prompt" rows="2" placeholder="例如：提取固定搭配和常用表达" class="w-full px-3 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-white"></textarea>
+            </div>
+            
+            <div class="bg-purple-50 rounded-lg p-3">
+              <label class="block text-xs font-medium text-purple-700 mb-1">📘 语句（sentence）提取要求</label>
+              <textarea id="new-module-sentence-prompt" rows="2" placeholder="例如：提取实用对话和重要句型" class="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm bg-white"></textarea>
+            </div>
+          </div>
+          
+          <!-- 生成按钮 -->
+          <button onclick="app.generatePromptPreview()" class="mt-3 w-full px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg transition-colors text-sm">
+            💡 生成并预览AI Prompt
+          </button>
+          
+          <!-- Prompt预览/编辑区 -->
+          <div id="prompt-preview-container" class="hidden mt-3 border border-primary-200 rounded-lg p-3 bg-primary-50">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-xs font-medium text-primary-700">📋 AI Prompt预览（可编辑）</label>
+              <span class="text-xs text-primary-400">支持占位符：{{original}}, {{translation}}, {{wordType}}, {{explanation}}, {{example}}</span>
+            </div>
+            <textarea id="new-module-final-prompt" rows="6" class="w-full px-3 py-2 border border-primary-300 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent text-sm font-mono text-xs" placeholder="点击上方按钮生成Prompt..."></textarea>
+            <p class="text-xs text-primary-500 mt-2">💡 提示：你可以直接修改上述内容，或者使用占位符来定义动态内容</p>
+          </div>
+          
+          <input type="hidden" id="new-module-prompt" value="">
         </div>
         <div>
           <label class="block text-sm font-medium text-primary-700 mb-2">选择国家/地区旗帜</label>

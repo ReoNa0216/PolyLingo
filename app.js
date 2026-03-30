@@ -5931,11 +5931,98 @@ Requirements:
     document.getElementById('new-module-name').value = '';
     document.getElementById('new-module-lang').value = '';
     document.getElementById('new-module-code').value = '';
-    document.getElementById('new-module-prompt').value = '';
     document.getElementById('new-module-flag').value = 'kr';
+    
+    // Reset prompt inputs
+    document.getElementById('new-module-word-prompt').value = '';
+    document.getElementById('new-module-phrase-prompt').value = '';
+    document.getElementById('new-module-sentence-prompt').value = '';
+    document.getElementById('new-module-final-prompt').value = '';
+    document.getElementById('new-module-prompt').value = '';
+    document.getElementById('prompt-preview-container').classList.add('hidden');
+    
     document.querySelectorAll('.module-flag-btn').forEach(btn => {
       btn.classList.remove('ring-2', 'ring-offset-2', 'ring-accent-500');
     });
+  },
+  
+  // 生成Prompt预览
+  generatePromptPreview() {
+    const wordReq = document.getElementById('new-module-word-prompt').value.trim();
+    const phraseReq = document.getElementById('new-module-phrase-prompt').value.trim();
+    const sentenceReq = document.getElementById('new-module-sentence-prompt').value.trim();
+    const langName = document.getElementById('new-module-name').value.trim() || '该语言';
+    
+    // 如果都没填，显示默认提示
+    if (!wordReq && !phraseReq && !sentenceReq) {
+      alert('请至少填写一个类型的提取要求');
+      return;
+    }
+    
+    // 生成标准化Prompt
+    let prompt = `你是一位专业的${langName}教学专家。请从教材内容中提取学习条目。\n`;
+    
+    prompt += `\n【系统约束 - 必须严格执行】\n`;
+    prompt += `1. 返回格式：合法JSON数组，不要Markdown代码块\n`;
+    prompt += `2. 条目类型 type 必须为："word"（单词）/ "phrase"（短语）/ "sentence"（句子）\n`;
+    prompt += `3. 必填字段：type、original（原文）、translation（中文翻译）\n`;
+    prompt += `4. word类型必须补充：wordType（词性）\n`;
+    prompt += `5. explanation字段支持Markdown格式（表格、标题、列表）\n`;
+    prompt += `6. example字段可为空（如果例句已在explanation中）\n`;
+    prompt += `7. 可用占位符：{{original}}（原文）、{{translation}}（翻译）、{{wordType}}（词性）、{{explanation}}（解释）、{{example}}（例句）\n`;
+    
+    if (wordReq) {
+      prompt += `\n【单词（word）提取要求】\n${wordReq}\n`;
+      prompt += `\n单词返回格式示例：\n`;
+      prompt += `{\n`;
+      prompt += `  "type": "word",\n`;
+      prompt += `  "original": "{{original}}",\n`;
+      prompt += `  "translation": "{{translation}}",\n`;
+      prompt += `  "wordType": "{{wordType}}",\n`;
+      prompt += `  "explanation": "## {{original}}\n\n| 项目 | 内容 |\n|------|------|\n| 词性 | {{wordType}} |",\n`;
+      prompt += `  "example": ""\n`;
+      prompt += `}\n`;
+    }
+    
+    if (phraseReq) {
+      prompt += `\n【短语（phrase）提取要求】\n${phraseReq}\n`;
+      prompt += `\n短语返回格式示例：\n`;
+      prompt += `{\n`;
+      prompt += `  "type": "phrase",\n`;
+      prompt += `  "original": "{{original}}",\n`;
+      prompt += `  "translation": "{{translation}}",\n`;
+      prompt += `  "wordType": "",\n`;
+      prompt += `  "explanation": "{{explanation}}",\n`;
+      prompt += `  "example": ""\n`;
+      prompt += `}\n`;
+    }
+    
+    if (sentenceReq) {
+      prompt += `\n【语句（sentence）提取要求】\n${sentenceReq}\n`;
+      prompt += `\n语句返回格式示例：\n`;
+      prompt += `{\n`;
+      prompt += `  "type": "sentence",\n`;
+      prompt += `  "original": "{{original}}",\n`;
+      prompt += `  "translation": "{{translation}}",\n`;
+      prompt += `  "wordType": "",\n`;
+      prompt += `  "explanation": "",\n`;
+      prompt += `  "example": ""\n`;
+      prompt += `}\n`;
+    }
+    
+    prompt += `\n【数量要求】\n每1000字符提取20-40个条目（单词+短语+语句）\n`;
+    prompt += `\n【重要提示】\n`;
+    prompt += `- 根据内容自动判断条目类型，不要全部返回同一类型\n`;
+    prompt += `- 例句可以根据词义自行生成，不一定来源于原文\n`;
+    prompt += `- 确保返回的JSON合法，不要有注释\n`;
+    
+    // 显示预览区
+    document.getElementById('new-module-final-prompt').value = prompt.trim();
+    document.getElementById('new-module-prompt').value = prompt.trim();
+    document.getElementById('prompt-preview-container').classList.remove('hidden');
+    
+    // 滚动到预览区
+    document.getElementById('prompt-preview-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
   
   closeAddModuleModal() {
@@ -5955,7 +6042,11 @@ Requirements:
     const language = document.getElementById('new-module-lang').value.trim();
     const code = document.getElementById('new-module-code').value.trim().toUpperCase();
     const flag = document.getElementById('new-module-flag').value;
-    const customPrompt = document.getElementById('new-module-prompt').value.trim();
+    // 优先使用用户编辑过的最终prompt，如果没有则使用隐藏字段的值
+    const finalPrompt = document.getElementById('new-module-final-prompt');
+    const customPrompt = finalPrompt && finalPrompt.value.trim() 
+      ? finalPrompt.value.trim() 
+      : document.getElementById('new-module-prompt').value.trim();
     
     if (!name || !language || !code) {
       alert('请填写所有必填字段');
