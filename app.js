@@ -390,6 +390,7 @@ ${placeholderText}`;
     document.getElementById('page-title').textContent = '仪表盘';
     document.getElementById('module-badge').classList.add('hidden');
     this.currentView = 'dashboard';
+    this.currentModule = null; // 重置为混合模式
     
     // Update module stats - 基于学习条目
     for (const key in this.modules) {
@@ -4027,12 +4028,14 @@ ${wordsList}
     
     const entry = this.reviewQueue[this.currentReviewIndex];
     
-    // 记录前一个卡片的学习时间（如果有）
+    // 记录前一个卡片的学习时间（如果有）- 使用秒级精度，最后统一转换为分钟
     if (this.currentCardStartTime && this.currentCardModuleId) {
-      const cardDuration = Math.floor((Date.now() - this.currentCardStartTime) / 60000);
-      if (cardDuration > 0) {
+      const cardDurationSeconds = Math.floor((Date.now() - this.currentCardStartTime) / 1000);
+      // 至少学习了 5 秒才记录
+      if (cardDurationSeconds >= 5) {
+        const cardDurationMinutes = cardDurationSeconds / 60;
         this.moduleStudyTimes[this.currentCardModuleId] = 
-          (this.moduleStudyTimes[this.currentCardModuleId] || 0) + cardDuration;
+          (this.moduleStudyTimes[this.currentCardModuleId] || 0) + cardDurationMinutes;
       }
     }
     
@@ -4150,10 +4153,11 @@ ${wordsList}
   async finishReview() {
     // 记录当前正在复习的卡片时间
     if (this.currentCardStartTime && this.currentCardModuleId) {
-      const cardDuration = Math.floor((Date.now() - this.currentCardStartTime) / 60000);
-      if (cardDuration > 0) {
+      const cardDurationSeconds = Math.floor((Date.now() - this.currentCardStartTime) / 1000);
+      if (cardDurationSeconds >= 5) {
+        const cardDurationMinutes = cardDurationSeconds / 60;
         this.moduleStudyTimes[this.currentCardModuleId] = 
-          (this.moduleStudyTimes[this.currentCardModuleId] || 0) + cardDuration;
+          (this.moduleStudyTimes[this.currentCardModuleId] || 0) + cardDurationMinutes;
       }
     }
     
@@ -4169,14 +4173,15 @@ ${wordsList}
         const date = new Date().toISOString().split('T')[0];
         const moduleTimes = this.moduleStudyTimes || {};
         
-        // 为每个模块记录实际学习时间
+        // 为每个模块记录实际学习时间（转换为整数分钟）
         for (const [moduleId, moduleDuration] of Object.entries(moduleTimes)) {
-          if (moduleDuration > 0) {
+          const durationMinutes = Math.round(moduleDuration);
+          if (durationMinutes > 0) {
             await db.records.put({
               id: `record_${Date.now()}_${moduleId}`,
               date: date,
               moduleId: moduleId,
-              duration: moduleDuration,
+              duration: durationMinutes,
               action: 'review',
               createdAt: new Date()
             });
