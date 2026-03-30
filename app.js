@@ -432,10 +432,14 @@ ${placeholderText}`;
       document.getElementById(`${mod.id}-bar`).style.width = `${progress}%`;
     }
     
-    // Update due count - calculate actual total due entries across all modules
-    const allEntries = await db.entries.toArray();
-    const totalDue = allEntries.filter(e => new Date(e.nextReview) <= new Date()).length;
-    document.getElementById('due-count').textContent = totalDue;
+    // Update due count - show today's progress vs daily goal
+    const settings = await this.getSettings();
+    const dailyGoal = settings.dailyLimit || 20;
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecords = await db.records.where('date').equals(today).and(r => r.action === 'review').toArray();
+    const completedToday = todayRecords.reduce((sum, r) => sum + (r.count || 1), 0);
+    const remaining = Math.max(0, dailyGoal - completedToday);
+    document.getElementById('due-count').textContent = `${completedToday}/${dailyGoal}`;
     
     // Load recent activity
     await this.loadRecentActivity();
@@ -4248,10 +4252,12 @@ ${wordsList}
     // 停止计时并获取实际学习时长
     const duration = this.stopStudyTimer();
     
+    const reviewedCount = this.reviewQueue.length;
+    
     if (duration > 0) {
       if (this.currentModule) {
         // 单个模块复习：记录到当前模块
-        await this.recordActivity('review', duration);
+        await this.recordActivity('review', duration, reviewedCount);
       } else {
         // 混合复习：按实际学习时间分配到各语言
         const date = new Date().toISOString().split('T')[0];
@@ -4266,6 +4272,7 @@ ${wordsList}
               date: date,
               moduleId: moduleId,
               duration: durationMinutes,
+              count: reviewedCount, // 记录本次复习的条目数量
               action: 'review',
               createdAt: new Date()
             });
@@ -5811,12 +5818,13 @@ Requirements:
     }
   },
   
-  async recordActivity(action, duration) {
+  async recordActivity(action, duration, count = 1) {
     await db.records.put({
       id: `record_${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
       moduleId: this.currentModule,
       duration: duration,
+      count: count,
       action: action,
       createdAt: new Date()
     });
