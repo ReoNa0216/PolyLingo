@@ -3207,19 +3207,52 @@ ${wordsList}
   fixMalformedJSON(jsonStr) {
     // 处理AI返回的JSON中未转义的中文引号
     // 中文引号在JSON字符串值内部会导致解析失败
-    let fixed = jsonStr;
+    let result = '';
+    let inString = false;
+    let escaped = false;
     
-    // 方法：匹配所有JSON字符串值（包括内部的内容），然后处理其中的中文引号
-    // 匹配模式："键": "值" 中的值部分
-    const stringValuePattern = /"([^"\\]*(?:\\.[^"\\]*)*)"/g;
+    for (let i = 0; i < jsonStr.length; i++) {
+      const char = jsonStr[i];
+      const charCode = char.charCodeAt(0);
+      
+      if (escaped) {
+        // 当前字符被转义
+        result += char;
+        escaped = false;
+        continue;
+      }
+      
+      if (char === '\\') {
+        // 转义字符
+        result += char;
+        escaped = true;
+        continue;
+      }
+      
+      if (char === '"' && !inString) {
+        // 开始字符串
+        inString = true;
+        result += char;
+        continue;
+      }
+      
+      if (char === '"' && inString) {
+        // 结束字符串
+        inString = false;
+        result += char;
+        continue;
+      }
+      
+      if (inString && (charCode === 0x201c || charCode === 0x201d)) {
+        // 在字符串内部的中文引号，替换为转义的英文引号
+        result += '\\"';
+        continue;
+      }
+      
+      result += char;
+    }
     
-    fixed = fixed.replace(stringValuePattern, (match, content) => {
-      // 在字符串内容中，将中文引号替换为转义的英文引号
-      const escapedContent = content.replace(/["“”]/g, '\\"');
-      return '"' + escapedContent + '"';
-    });
-    
-    return fixed;
+    return result;
   },
   
   // 宽松模式解析（备用）
