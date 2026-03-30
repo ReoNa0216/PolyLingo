@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PolyLingo - Language Learning Assistant
  * Main Application Logic
  */
@@ -2893,12 +2893,19 @@ ${wordsList}
       for (const pattern of jsonPatterns) {
         const match = content.match(pattern);
         if (match) {
-          const jsonStr = match[1] || match[0];
+          let jsonStr = match[1] || match[0];
           try {
             enrichedData = JSON.parse(jsonStr);
             break;
           } catch (e) {
-            // 继续尝试下一个模式
+            // 尝试修复格式问题后重新解析
+            try {
+              jsonStr = this.fixMalformedJSON(jsonStr);
+              enrichedData = JSON.parse(jsonStr);
+              break;
+            } catch (e2) {
+              // 继续尝试下一个模式
+            }
           }
         }
       }
@@ -2908,11 +2915,17 @@ ${wordsList}
         const startIdx = content.indexOf('[');
         const endIdx = content.lastIndexOf(']');
         if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
-          const jsonStr = content.substring(startIdx, endIdx + 1);
+          let jsonStr = content.substring(startIdx, endIdx + 1);
           try {
             enrichedData = JSON.parse(jsonStr);
           } catch (e) {
-            console.error('Failed to parse JSON. Content:', content);
+            // 尝试修复
+            try {
+              jsonStr = this.fixMalformedJSON(jsonStr);
+              enrichedData = JSON.parse(jsonStr);
+            } catch (e2) {
+              console.error('Failed to parse JSON. Content:', content);
+            }
           }
         }
       }
@@ -3105,13 +3118,20 @@ ${wordsList}
         for (const pattern of jsonPatterns) {
           const match = content.match(pattern);
           if (match) {
-            const jsonStr = match[1] || match[0];
+            let jsonStr = match[1] || match[0];
             try {
               enrichedData = JSON.parse(jsonStr);
               break;
             } catch (e) {
-              parseError = e;
-              // 继续尝试下一个模式
+              // 尝试修复格式问题后重新解析
+              try {
+                jsonStr = this.fixMalformedJSON(jsonStr);
+                enrichedData = JSON.parse(jsonStr);
+                break;
+              } catch (e2) {
+                parseError = e2;
+                // 继续尝试下一个模式
+              }
             }
           }
         }
@@ -3121,11 +3141,17 @@ ${wordsList}
           const startIdx = content.indexOf('[');
           const endIdx = content.lastIndexOf(']');
           if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
-            const jsonStr = content.substring(startIdx, endIdx + 1);
+            let jsonStr = content.substring(startIdx, endIdx + 1);
             try {
               enrichedData = JSON.parse(jsonStr);
             } catch (e) {
-              parseError = e;
+              // 尝试修复
+              try {
+                jsonStr = this.fixMalformedJSON(jsonStr);
+                enrichedData = JSON.parse(jsonStr);
+              } catch (e2) {
+                parseError = e2;
+              }
             }
           }
         }
@@ -3175,6 +3201,18 @@ ${wordsList}
         await new Promise(resolve => setTimeout(resolve, 1000 * retries));
       }
     }
+  },
+  
+  // 修复AI返回的JSON中的格式问题
+  fixMalformedJSON(jsonStr) {
+    // 处理AI返回的JSON中未转义的中文引号
+    // 中文引号在JSON字符串中会导致解析失败
+    let fixed = jsonStr;
+    
+    // 将中文左双引号\u201c(上双引号) 和 右双引号\u201d(下双引号) 替换为转义的ASCII引号
+    fixed = fixed.replace(/\\u201c/g, '\\"').replace(/\\u201d/g, '\\"');
+    
+    return fixed;
   },
   
   // 宽松模式解析（备用）
@@ -5482,3 +5520,4 @@ Requirements:
 document.addEventListener('DOMContentLoaded', () => {
   app.init();
 });
+
