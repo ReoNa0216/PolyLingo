@@ -208,6 +208,31 @@
     .prompt-type-phrase { border-left: 3px solid #22c55e; }
     .prompt-type-sentence { border-left: 3px solid #a855f7; }
     
+    /* Resizable Modal Styles */
+    #add-module-modal-content {
+      resize: both;
+      overflow: auto;
+      position: relative;
+    }
+    #add-module-modal-content::-webkit-resizer {
+      background-color: transparent;
+    }
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 40%, #bcccdc 40%, #bcccdc 45%, transparent 45%,
+                                  transparent 55%, #bcccdc 55%, #bcccdc 60%, transparent 60%);
+      z-index: 10;
+    }
+    .resize-handle:hover {
+      background: linear-gradient(135deg, transparent 40%, #627d98 40%, #627d98 45%, transparent 45%,
+                                  transparent 55%, #627d98 55%, #627d98 60%, transparent 60%);
+    }
+    
     /* Streak Animation */
     @keyframes pulse-fire {
       0%, 100% { transform: scale(1); }
@@ -740,7 +765,7 @@
   
   <!-- Add Module Modal -->
   <div id="add-module-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 animate-fade-in max-h-[90vh] overflow-y-auto">
+    <div id="add-module-modal-content" class="bg-white rounded-2xl p-8 w-full mx-4 animate-fade-in overflow-y-auto relative" style="max-width: 800px; min-width: 400px; min-height: 500px; max-height: 90vh; resize: both;">
       <h3 class="text-2xl font-bold mb-4">添加新语言</h3>
       <div class="space-y-4">
         <div>
@@ -793,69 +818,151 @@
             <!-- 占位符助手 -->
             <div class="mt-3 border-t border-primary-200 pt-3">
               <div class="flex justify-between items-center mb-2">
-                <label class="text-xs font-medium text-primary-700">🎨 快捷插入占位符（点击插入）</label>
+                <label class="text-xs font-medium text-primary-700">🎨 通用占位符库（点击插入）</label>
                 <button onclick="app.togglePlaceholderHelp()" class="text-xs text-accent-600 hover:text-accent-700">展开/折叠</button>
               </div>
-              <div id="placeholder-help-panel" class="grid grid-cols-2 gap-2 text-xs">
-                <!-- 基础占位符 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">基础字段：</div>
-                <button onclick="app.insertPlaceholder('{{original}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="插入原文占位符">📝 {{original}}</button>
-                <button onclick="app.insertPlaceholder('{{translation}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="插入翻译占位符">🌐 {{translation}}</button>
-                <button onclick="app.insertPlaceholder('{{wordType}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="插入词性占位符">🏷️ {{wordType}}</button>
-                <button onclick="app.insertPlaceholder('{{gender}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="性别/阴阳性">♀️♂️ {{gender}}</button>
+              <div id="placeholder-help-panel" class="grid grid-cols-1 gap-1.5 text-xs max-h-64 overflow-y-auto">
+                <!-- 基础字段 -->
+                <div class="col-span-1 font-medium text-primary-600 mt-1 text-xs bg-primary-100 px-2 py-0.5 rounded">基础字段</div>
+                <button onclick="app.insertPlaceholder('{{original}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="条目的原文">
+                  <span class="w-16 text-gray-500">原文</span>
+                  <code class="text-accent-600 font-mono">{{original}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{translation}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="中文翻译">
+                  <span class="w-16 text-gray-500">翻译</span>
+                  <code class="text-accent-600 font-mono">{{translation}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{wordType}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="词性标注（名词/动词/形容词等）">
+                  <span class="w-16 text-gray-500">词性</span>
+                  <code class="text-accent-600 font-mono">{{wordType}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{gender}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="语法性别（阴性/阳性/中性等）">
+                  <span class="w-16 text-gray-500">语法性别</span>
+                  <code class="text-accent-600 font-mono">{{gender}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{pluralForm}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="复数形式">
+                  <span class="w-16 text-gray-500">复数形式</span>
+                  <code class="text-accent-600 font-mono">{{pluralForm}}</code>
+                </button>
                 
-                <!-- 词源和分类 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">词源与分类：</div>
-                <button onclick="app.insertPlaceholder('{{wordSource}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="词源（汉字/固有/外来/拉丁等）">📖 {{wordSource}}</button>
-                <button onclick="app.insertPlaceholder('{{etymology}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="词源解释">📜 {{etymology}}</button>
-                <button onclick="app.insertPlaceholder('{{register}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="语域等级（正式/书面/口语）">📊 {{register}}</button>
-                <button onclick="app.insertPlaceholder('{{speechLevel}}')" class="px-2 py-1 bg-white border border-primary-200 rounded hover:bg-primary-100 text-left" title="敬语/语体等级">🤚 {{speechLevel}}</button>
+                <!-- 音标发音 -->
+                <div class="col-span-1 font-medium text-primary-600 mt-2 text-xs bg-primary-100 px-2 py-0.5 rounded">音标与发音</div>
+                <button onclick="app.insertPlaceholder('{{romanization}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="罗马音拼写">
+                  <span class="w-16 text-gray-500">罗马音</span>
+                  <code class="text-accent-600 font-mono">{{romanization}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{IPA}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="国际音标">
+                  <span class="w-16 text-gray-500">IPA音标</span>
+                  <code class="text-accent-600 font-mono">{{IPA}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{pronunciation}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="发音要点提示">
+                  <span class="w-16 text-gray-500">发音要点</span>
+                  <code class="text-accent-600 font-mono">{{pronunciation}}</code>
+                </button>
                 
-                <!-- 语法特征 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">语法特征（针对性强）：</div>
-                <button onclick="app.insertPlaceholder('{{particles}}')" class="px-2 py-1 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 text-left" title="韩语助词搭配">🇰🇷 {{particles}}</button>
-                <button onclick="app.insertPlaceholder('{{conjugation}}')" class="px-2 py-1 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 text-left" title="活用/变位规则">🔄 {{conjugation}}</button>
-                <button onclick="app.insertPlaceholder('{{conjugationFormal}}')" class="px-2 py-1 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 text-left" title="格式体变位">🏛️ {{conjugationFormal}}</button>
-                <button onclick="app.insertPlaceholder('{{conjugationInformal}}')" class="px-2 py-1 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 text-left" title="非格式体变位">🏠 {{conjugationInformal}}</button>
-                <button onclick="app.insertPlaceholder('{{gender}}')" class="px-2 py-1 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100 text-left" title="法语阴阳性">🇫🇷 {{gender}}</button>
-                <button onclick="app.insertPlaceholder('{{pluralForm}}')" class="px-2 py-1 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100 text-left" title="复数形式">📑 {{pluralForm}}</button>
+                <!-- 词源语域 -->
+                <div class="col-span-1 font-medium text-primary-600 mt-2 text-xs bg-primary-100 px-2 py-0.5 rounded">词源与语域</div>
+                <button onclick="app.insertPlaceholder('{{wordSource}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="词汇来源分类">
+                  <span class="w-16 text-gray-500">词源分类</span>
+                  <code class="text-accent-600 font-mono">{{wordSource}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{etymology}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="词源历史解释">
+                  <span class="w-16 text-gray-500">词源解释</span>
+                  <code class="text-accent-600 font-mono">{{etymology}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{register}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="语域等级">
+                  <span class="w-16 text-gray-500">语域等级</span>
+                  <code class="text-accent-600 font-mono">{{register}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{speechLevel}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="语体/敬语等级">
+                  <span class="w-16 text-gray-500">语体等级</span>
+                  <code class="text-accent-600 font-mono">{{speechLevel}}</code>
+                </button>
                 
-                <!-- 音标和发音 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">音标与发音：</div>
-                <button onclick="app.insertPlaceholder('{{romanization}}')" class="px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 text-left" title="罗马音">🔤 {{romanization}}</button>
-                <button onclick="app.insertPlaceholder('{{IPA}}')" class="px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 text-left" title="国际音标">🎤 {{IPA}}</button>
-                <button onclick="app.insertPlaceholder('{{pronunciation}}')" class="px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 text-left" title="发音提示">🗣️ {{pronunciation}}</button>
-                <button onclick="app.insertPlaceholder('{{liaison}}')" class="px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 text-left" title="法语连读">💿 {{liaison}}</button>
+                <!-- 变化形式 -->
+                <div class="col-span-1 font-medium text-primary-600 mt-2 text-xs bg-primary-100 px-2 py-0.5 rounded">变化形式</div>
+                <button onclick="app.insertPlaceholder('{{conjugation}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="活用或变位规则">
+                  <span class="w-16 text-gray-500">变位规则</span>
+                  <code class="text-accent-600 font-mono">{{conjugation}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{tenseMood}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="时态和语气">
+                  <span class="w-16 text-gray-500">时态语气</span>
+                  <code class="text-accent-600 font-mono">{{tenseMood}}</code>
+                </button>
                 
                 <!-- 例句变体 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">例句变体：</div>
-                <button onclick="app.insertPlaceholder('{{exampleFormal}}')" class="px-2 py-1 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 text-left" title="正式体/格式体例句">👔 {{exampleFormal}}</button>
-                <button onclick="app.insertPlaceholder('{{exampleInformal}}')" class="px-2 py-1 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 text-left" title="非正式体/口语例句">👗 {{exampleInformal}}</button>
-                <button onclick="app.insertPlaceholder('{{exampleWritten}}')" class="px-2 py-1 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 text-left" title="书面语例句">✍️ {{exampleWritten}}</button>
-                <button onclick="app.insertPlaceholder('{{exampleSpoken}}')" class="px-2 py-1 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 text-left" title="口语例句">🗣️ {{exampleSpoken}}</button>
+                <div class="col-span-1 font-medium text-primary-600 mt-2 text-xs bg-primary-100 px-2 py-0.5 rounded">例句变体</div>
+                <button onclick="app.insertPlaceholder('{{exampleFormal}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="正式场合例句">
+                  <span class="w-16 text-gray-500">正式例句</span>
+                  <code class="text-accent-600 font-mono">{{exampleFormal}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{exampleInformal}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="非正式场合例句">
+                  <span class="w-16 text-gray-500">非正式例句</span>
+                  <code class="text-accent-600 font-mono">{{exampleInformal}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{exampleWritten}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="书面语例句">
+                  <span class="w-16 text-gray-500">书面例句</span>
+                  <code class="text-accent-600 font-mono">{{exampleWritten}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{exampleSpoken}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="口语化例句">
+                  <span class="w-16 text-gray-500">口语例句</span>
+                  <code class="text-accent-600 font-mono">{{exampleSpoken}}</code>
+                </button>
                 
                 <!-- 含义解析 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">含义解析：</div>
-                <button onclick="app.insertPlaceholder('{{literalMeaning}}')" class="px-2 py-1 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 text-left" title="字面意思">📖 {{literalMeaning}}</button>
-                <button onclick="app.insertPlaceholder('{{actualMeaning}}')" class="px-2 py-1 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 text-left" title="实际含义">💭 {{actualMeaning}}</button>
-                <button onclick="app.insertPlaceholder('{{nuance}}')" class="px-2 py-1 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 text-left" title="语义微妙差别">🧠 {{nuance}}</button>
-                <button onclick="app.insertPlaceholder('{{usageContext}}')" class="px-2 py-1 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 text-left" title="使用场景">🎭 {{usageContext}}</button>
+                <div class="col-span-1 font-medium text-primary-600 mt-2 text-xs bg-primary-100 px-2 py-0.5 rounded">含义解析</div>
+                <button onclick="app.insertPlaceholder('{{literalMeaning}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="字面意思">
+                  <span class="w-16 text-gray-500">字面意思</span>
+                  <code class="text-accent-600 font-mono">{{literalMeaning}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{actualMeaning}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="实际含义">
+                  <span class="w-16 text-gray-500">实际含义</span>
+                  <code class="text-accent-600 font-mono">{{actualMeaning}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{nuance}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="语义微妙差别">
+                  <span class="w-16 text-gray-500">语义差别</span>
+                  <code class="text-accent-600 font-mono">{{nuance}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{usageContext}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="使用场景">
+                  <span class="w-16 text-gray-500">使用场景</span>
+                  <code class="text-accent-600 font-mono">{{usageContext}}</code>
+                </button>
                 
                 <!-- 语法成分 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">语法成分分解：</div>
-                <button onclick="app.insertPlaceholder('{{subject}}')" class="px-2 py-1 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-left" title="主语">👤 {{subject}}</button>
-                <button onclick="app.insertPlaceholder('{{predicate}}')" class="px-2 py-1 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-left" title="谓语">📝 {{predicate}}</button>
-                <button onclick="app.insertPlaceholder('{{tenseMood}}')" class="px-2 py-1 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-left" title="时态/语气">⏰ {{tenseMood}}</button>
-                <button onclick="app.insertPlaceholder('{{structure}}')" class="px-2 py-1 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-left" title="句子结构">🏗️ {{structure}}</button>
+                <div class="col-span-1 font-medium text-primary-600 mt-2 text-xs bg-primary-100 px-2 py-0.5 rounded">语法成分</div>
+                <button onclick="app.insertPlaceholder('{{subject}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="句子主语">
+                  <span class="w-16 text-gray-500">主语</span>
+                  <code class="text-accent-600 font-mono">{{subject}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{predicate}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="句子谓语">
+                  <span class="w-16 text-gray-500">谓语</span>
+                  <code class="text-accent-600 font-mono">{{predicate}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{structure}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="句子结构">
+                  <span class="w-16 text-gray-500">句子结构</span>
+                  <code class="text-accent-600 font-mono">{{structure}}</code>
+                </button>
                 
-                <!-- 文化和近义 -->
-                <div class="col-span-2 font-medium text-primary-600 mt-1">文化与近义：</div>
-                <button onclick="app.insertPlaceholder('{{culturalNote}}')" class="px-2 py-1 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 text-left" title="文化注释">🌏 {{culturalNote}}</button>
-                <button onclick="app.insertPlaceholder('{{synonym}}')" class="px-2 py-1 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 text-left" title="近义词">💜 {{synonym}}</button>
-                <button onclick="app.insertPlaceholder('{{antonym}}')" class="px-2 py-1 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 text-left" title="反义词">💔 {{antonym}}</button>
-                <button onclick="app.insertPlaceholder('{{commonMistake}}')" class="px-2 py-1 bg-red-50 border border-red-200 rounded hover:bg-red-100 text-left" title="常见错误">⚠️ {{commonMistake}}</button>
+                <!-- 文化近义 -->
+                <div class="col-span-1 font-medium text-primary-600 mt-2 text-xs bg-primary-100 px-2 py-0.5 rounded">文化与近义</div>
+                <button onclick="app.insertPlaceholder('{{culturalNote}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="文化背景注释">
+                  <span class="w-16 text-gray-500">文化注释</span>
+                  <code class="text-accent-600 font-mono">{{culturalNote}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{synonym}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="近义词">
+                  <span class="w-16 text-gray-500">近义词</span>
+                  <code class="text-accent-600 font-mono">{{synonym}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{antonym}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="反义词">
+                  <span class="w-16 text-gray-500">反义词</span>
+                  <code class="text-accent-600 font-mono">{{antonym}}</code>
+                </button>
+                <button onclick="app.insertPlaceholder('{{commonMistake}}')" class="px-2 py-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-left flex items-center gap-2" title="常见错误">
+                  <span class="w-16 text-gray-500">常见错误</span>
+                  <code class="text-accent-600 font-mono">{{commonMistake}}</code>
+                </button>
               </div>
-              <p class="text-xs text-primary-500 mt-2">💡 点击上述占位符可快捷插入到Prompt中，也可以手动输入其他自定义占位符</p>
+              <p class="text-xs text-primary-500 mt-2">💡 点击上述占位符可快捷插入到Prompt中，所有占位符均为通用格式，适用于任何语言</p>
             </div>
           </div>
           
@@ -892,6 +999,21 @@
           <button onclick="app.addCustomModule()" class="flex-1 px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg transition-colors">
             添加
           </button>
+        </div>
+        
+        <!-- 窗口调整提示 -->
+        <div class="absolute bottom-2 right-2 text-xs text-primary-400 flex items-center gap-1 pointer-events-none select-none">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+          </svg>
+          <span>拖拽边缘调整大小</span>
+        </div>
+        
+        <!-- 调整大小的handle -->
+        <div class="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-1" style="background: linear-gradient(135deg, transparent 50%, #d9e2ec 50%);">
+          <svg class="w-3 h-3 text-primary-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M14.5 14.5L19 19M10.5 14.5L14.5 14.5M14.5 10.5L14.5 14.5"></path>
+          </svg>
         </div>
       </div>
     </div>

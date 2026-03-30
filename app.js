@@ -5969,15 +5969,15 @@ Requirements:
     prompt += `4. word类型必须补充：wordType（词性）\n`;
     prompt += `5. explanation字段支持Markdown格式（表格、标题、列表）\n`;
     prompt += `6. example字段可为空（如果例句已在explanation中）\n`;
-    prompt += `7. 可用占位符说明：\n`;
-    prompt += `   - 基础字段：{{original}}（原文）、{{translation}}（翻译）、{{wordType}}（词性）、{{gender}}（性别/阴阳性）\n`;
-    prompt += `   - 词源分类：{{wordSource}}（词源：汉字/固有/外来/拉丁等）、{{etymology}}（词源解释）\n`;
-    prompt += `   - 语法特征：{{particles}}（助词/介词搭配）、{{conjugation}}（活用/变位）、{{conjugationFormal}}（格式体）、{{conjugationInformal}}（非格式体）、{{pluralForm}}（复数形式）\n`;
-    prompt += `   - 音标发音：{{romanization}}（罗马音）、{{IPA}}（国际音标）、{{pronunciation}}（发音提示）、{{liaison}}（连读）\n`;
-    prompt += `   - 例句变体：{{exampleFormal}}（正式体）、{{exampleInformal}}（口语体）、{{exampleWritten}}（书面语）、{{exampleSpoken}}（口语）\n`;
-    prompt += `   - 含义解析：{{literalMeaning}}（字面意思）、{{actualMeaning}}（实际含义）、{{nuance}}（语义差别）、{{usageContext}}（使用场景）\n`;
-    prompt += `   - 语法成分：{{subject}}（主语）、{{predicate}}（谓语）、{{tenseMood}}（时态语气）、{{structure}}（句子结构）\n`;
-    prompt += `   - 文化近义：{{culturalNote}}（文化注释）、{{synonym}}（近义词）、{{antonym}}（反义词）、{{commonMistake}}（常见错误）、{{register}}（语域等级）、{{speechLevel}}（敬语等级）\n`;
+    prompt += `7. 通用占位符说明（根据语言特点选择使用）：\n`;
+    prompt += `   - 基础字段：{{original}}(原文)、{{translation}}(翻译)、{{wordType}}(词性)、{{gender}}(语法性别)、{{pluralForm}}(复数形式)\n`;
+    prompt += `   - 音标发音：{{romanization}}(罗马音)、{{IPA}}(国际音标)、{{pronunciation}}(发音要点)\n`;
+    prompt += `   - 词源语域：{{wordSource}}(词源分类)、{{etymology}}(词源解释)、{{register}}(语域等级)、{{speechLevel}}(语体等级)\n`;
+    prompt += `   - 变化形式：{{conjugation}}(活用变位规则)、{{tenseMood}}(时态语气)\n`;
+    prompt += `   - 例句变体：{{exampleFormal}}(正式体)、{{exampleInformal}}(非正式体)、{{exampleWritten}}(书面语)、{{exampleSpoken}}(口语)\n`;
+    prompt += `   - 含义解析：{{literalMeaning}}(字面意思)、{{actualMeaning}}(实际含义)、{{nuance}}(语义差别)、{{usageContext}}(使用场景)\n`;
+    prompt += `   - 语法成分：{{subject}}(主语)、{{predicate}}(谓语)、{{structure}}(句子结构)、{{tenseMood}}(时态语气)\n`;
+    prompt += `   - 文化近义：{{culturalNote}}(文化注释)、{{synonym}}(近义词)、{{antonym}}(反义词)、{{commonMistake}}(常见错误)\n`;
     
     if (wordReq) {
       prompt += `\n【单词（word）提取要求】\n${wordReq}\n`;
