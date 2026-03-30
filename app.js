@@ -832,12 +832,19 @@ ${placeholderText}`;
     const isDefaultModule = isGerman || isEnglish || isJapanese;
     
     // 用户自定义提取要求（非默认模块）
-    const customPrompt = !isDefaultModule && mod.customPrompt ? `
+    const customPrompt = !isDefaultModule ? (mod.customPrompt ? `
 
 【用户自定义提取要求】
 ${mod.customPrompt}
 
-请根据以上要求提取学习条目。` : '';
+请根据以上要求提取学习条目。` : `
+
+【默认提取要求】
+提取常用词汇和实用表达，优先选择日常生活、学习和工作场景中的高频词汇。包括：
+- 常用名词（人、事、物、地点等）
+- 实用动词和形容词
+- 固定搭配和短语
+- 实用例句和表达`) : '';
     
     // 针对德语的特殊提示
     const germanPrompt = isGerman ? `特别注意：这是德语学习材料，请积极、尽可能多地提取学习条目，严格按照以下三类分类：
@@ -3079,12 +3086,15 @@ ${wordsList}
 5. 示例句子中的汉字必须标注平假名读音` : '';
     
     // 用户自定义补全要求（非默认模块）
-    const customPrompt = !isDefaultModule && mod.customPrompt ? `
+    const customPrompt = !isDefaultModule ? (mod.customPrompt ? `
 
 【用户自定义补全要求】
 ${mod.customPrompt}
 
-请根据以上要求补全词条信息。` : '';
+请根据以上要求补全词条信息。` : `
+
+【默认补全要求】
+为每个词条提供准确的词性标注、中文翻译、用法解释和实用例句。示例句子应展示该词在常见场景中的正确用法。`) : '';
     
     const prompt = isJapanese 
       ? `你是一位专业的日语教学专家。请为以下日语单词识别类型并补全完整信息。${customPrompt}
