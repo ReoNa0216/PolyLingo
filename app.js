@@ -939,43 +939,15 @@ ${mod.customPrompt}
       ? `语言过滤：只提取日语内容（包括汉字、平假名、片假名），忽略所有中文文本。`
       : `语言过滤：只提取${mod.language}内容，忽略中文文本。`;
     
-    // 用户口语化输入转换为技术指令（非默认模块）
-    const userRequirement = !isDefaultModule && mod.customPrompt ? mod.customPrompt : '';
-    const customModulePrompt = !isDefaultModule ? `
+    // 非默认模块直接使用用户定义的Prompt
+    const customModulePrompt = !isDefaultModule && mod.customPrompt ? `
 
-【用户需求】
-${userRequirement || `提取${mod.name}常用词汇和实用表达，优先日常生活、学习和工作场景中的高频词汇。`}
+${mod.customPrompt}
 
-【系统技术约束 - 必须严格执行】
-1. 返回格式：必须是合法的JSON数组，不要任何Markdown代码块标记
-2. 条目类型 type 必须为以下三种之一："word"(单词) / "phrase"(短语) / "sentence"(句子)
-3. 必填字段：type、original（原文）、translation（中文翻译）
-4. word类型必须补充：wordType（词性）
-5. explanation字段（用法解释）支持Markdown格式，可使用表格、标题、列表等丰富展示
-6. example字段可为空（如果例句已在explanation中以Markdown形式提供）
-7. 根据用户需求自动判断条目类型：单个词汇→word，固定搭配→phrase，完整句子→sentence
-8. 使用场景必须具体描述，不能为空
-
-【可用占位符（根据语言特点选择使用）】
-- 基础字段：{{original}}(原文), {{translation}}(翻译), {{wordType}}(词性), {{gender}}(语法性别), {{pluralForm}}(复数形式)
-- 音标发音：{{romanization}}(罗马音), {{IPA}}(国际音标), {{pronunciation}}(发音要点)
-- 词源语域：{{wordSource}}(词源分类), {{etymology}}(词源解释), {{register}}(语域等级), {{speechLevel}}(语体等级)
-- 变化形式：{{conjugation}}(活用变位规则), {{tenseMood}}(时态语气)
-- 例句变体：{{exampleFormal}}(正式体), {{exampleInformal}}(非正式体), {{exampleWritten}}(书面语), {{exampleSpoken}}(口语)
-- 含义解析：{{literalMeaning}}(字面意思), {{actualMeaning}}(实际含义), {{nuance}}(语义差别), {{usageContext}}(使用场景)
-- 语法成分：{{subject}}(主语), {{predicate}}(谓语), {{structure}}(句子结构), {{tenseMood}}(时态语气)
-- 文化近义：{{culturalNote}}(文化注释), {{synonym}}(近义词), {{antonym}}(反义词), {{commonMistake}}(常见错误)
-
-【返回格式示例】
-{
-  "type": "word",
-  "original": "示例词",
-  "translation": "示例翻译",
-  "wordType": "名词 固有词",
-  "gender": "",
-  "explanation": "## 示例词 (示例翻译)\\n\\n### 词源与分类\\n固有词 - 原生词汇\\n\\n### 语法特征\\n不规则活用\\n\\n### 使用场景\\n日常会话中表示...\\n\\n### 活用变化\\n| 形态 | 非正式体 | 正式体 |\\n|------|----------|--------|\\n| 现在 | 示例词 | 示例词正式体 |\\n\\n### 近义词辨析\\n| 词汇 | 语域 | 差异 |\\n|------|------|------|\\n| 近义词 | 日常 | 细微差别 |",
-  "example": ""
-}` : '';
+【基础约束】
+- 返回格式：合法JSON数组
+- 必填字段：type(word/phrase/sentence)、original、translation、wordType
+- explanation支持Markdown格式` : '';
     
     const prompt = `从以下${mod.name}教材内容中积极提取学习条目。这是第 ${chunkIndex}/${totalChunks} 部分。
 
@@ -3176,46 +3148,13 @@ ${mod.customPrompt}
 ${wordsList}
 
 返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "", "explanation": "...", "example": "..."}]`
-      : `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。
+      : `
+${userRequirement || `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。`}
 
-【用户需求】
-${userRequirement || `为每个词条提供准确的词性标注、中文翻译、用法解释和实用例句。`}
-
-【系统技术约束 - 必须严格执行】
-1. 返回格式：合法JSON数组，不要Markdown代码块
-2. 必填字段：type="word", original, translation, wordType
-3. explanation字段支持Markdown格式（表格、标题、列表），用于展示详细信息
-4. example字段可为空（如果例句已在explanation中）
-5. original必须与输入完全一致
-
-${genderDesc}
-
-【可用占位符（根据语言特点选择使用）】
-- 基础字段：{{original}}(原文), {{translation}}(翻译), {{wordType}}(词性), {{gender}}(语法性别), {{pluralForm}}(复数形式)
-- 音标发音：{{romanization}}(罗马音), {{IPA}}(国际音标), {{pronunciation}}(发音要点)
-- 词源语域：{{wordSource}}(词源分类), {{etymology}}(词源解释), {{register}}(语域等级), {{speechLevel}}(语体等级)
-- 变化形式：{{conjugation}}(活用变位规则), {{tenseMood}}(时态语气)
-- 例句变体：{{exampleFormal}}(正式体), {{exampleInformal}}(非正式体), {{exampleWritten}}(书面语), {{exampleSpoken}}(口语)
-- 含义解析：{{literalMeaning}}(字面意思), {{actualMeaning}}(实际含义), {{nuance}}(语义差别), {{usageContext}}(使用场景)
-- 语法成分：{{subject}}(主语), {{predicate}}(谓语), {{structure}}(句子结构), {{tenseMood}}(时态语气)
-- 文化近义：{{culturalNote}}(文化注释), {{synonym}}(近义词), {{antonym}}(反义词), {{commonMistake}}(常见错误)
-
-【返回格式示例】
-{
-  "type": "word",
-  "original": "{{original}}",
-  "translation": "{{translation}}",
-  "wordType": "{{wordType}} {{wordSource}}",
-  "gender": "{{gender}}",
-  "explanation": "## {{original}} ({{translation}})\n\n### 词源与分类\n{{wordSource}} - {{etymology}}\n\n### 语法特征\n{{conjugation}}\n\n### 使用场景\n{{usageContext}}\n\n### 活用变化\n| 形态 | 非正式体 | 正式体 |\n|------|----------|--------|\n| 现在 | {{exampleInformal}} | {{exampleFormal}} |\n\n### 近义词辨析\n| 词汇 | 语域 | 差异 |\n|------|------|------|\n| {{synonym}} | {{register}} | {{nuance}} |",
-  "example": ""
-}
-
-重要提示：
-1. explanation字段必须充分使用Markdown格式，包含详细的表格和分类信息
-2. 示例句子可以根据词义自行生成
-3. 使用场景不能为空，必须具体描述该词的使用情况
-${isGerman ? '4. 名词必须标注性别（der/die/das）\n5. 复数名词标注 pl.' : '4. 非德语语言不需要性别标记'}
+【基础约束】
+- 返回格式：合法JSON数组
+- 必填字段：type(word/phrase/sentence)、original、translation、wordType
+- explanation支持Markdown格式
 
 请为以下单词补全信息：
 ${wordsList}
