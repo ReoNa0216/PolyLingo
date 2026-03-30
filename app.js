@@ -939,15 +939,16 @@ ${mod.customPrompt}
       ? `语言过滤：只提取日语内容（包括汉字、平假名、片假名），忽略所有中文文本。`
       : `语言过滤：只提取${mod.language}内容，忽略中文文本。`;
     
-    // 非默认模块的基础说明（强制保留，确保与系统模块匹配）
+    // 非默认模块的基础说明（支持Markdown格式的explanation）
     const customModuleBase = !isDefaultModule ? `
 【必填 - 系统约束】
 1. 条目类型 type 必须为以下三种之一："word"(单词) / "phrase"(短语) / "sentence"(句子)
 2. 每个条目必须包含：type、original（原文）、translation（中文翻译）
-3. word类型必须补充：wordType（词性）、explanation（用法）、example（例句）
-4. phrase类型必须补充：explanation、example
+3. word类型必须补充：wordType（词性）、explanation（用法，支持Markdown格式）
+4. phrase类型必须补充：explanation（支持Markdown格式）
 5. sentence类型仅需：original、translation
-6. example字段必须是纯文本字符串，不能是对象` : '';
+6. explanation字段支持Markdown表格、标题、列表等格式，用于展示详细信息
+7. example字段可留空（如果例句已在explanation中以Markdown形式提供）` : '';
     
     const prompt = `从以下${mod.name}教材内容中积极提取学习条目。这是第 ${chunkIndex}/${totalChunks} 部分。
 
@@ -3086,7 +3087,7 @@ ${wordsList}
    - 其他：副词、助词、感叹词等
 5. 示例句子中的汉字必须标注平假名读音` : '';
     
-    // 用户自定义补全要求（非默认模块）
+    // 用户自定义补全要求（非默认模块）- 支持Markdown格式
     const customPrompt = !isDefaultModule ? (mod.customPrompt ? `
 
 【用户自定义补全要求】
@@ -3094,10 +3095,13 @@ ${mod.customPrompt}
 
 请根据以上要求补全词条信息。
 
-重要：返回的example字段必须是纯文本字符串，不能是对象。` : `
+【格式约束 - 必须遵守】
+1. explanation字段支持Markdown格式，可以使用表格、标题、列表等
+2. example字段留空（如果例句已经在explanation中以Markdown形式提供）
+3. 返回的所有字段必须是有效的JSON格式` : `
 
 【默认补全要求】
-为每个词条提供准确的词性标注、中文翻译、用法解释和实用例句。示例句子应展示该词在常见场景中的正确用法。`) : '';
+为每个词条提供准确的词性标注、中文翻译。explanation字段支持Markdown格式，可使用表格展示详细信息。`) : '';
     
     const prompt = isJapanese 
       ? `你是一位专业的日语教学专家。请为以下日语单词识别类型并补全完整信息。${customPrompt}
@@ -3149,18 +3153,18 @@ ${wordsList}
 - translation: 简洁准确的中文翻译
 - wordType: 词类型（如英语的Noun/名词、Verb/动词、Adjective/形容词等）
 ${genderDesc}
-- explanation: 用法解释（100字以内）
-- example: 示例句子（必须是纯文本字符串，格式为"原文 中文翻译"）
+- explanation: 用法解释（支持Markdown格式，可使用表格、标题等展示详细信息）
+- example: 可留空（如果例句已在explanation中以Markdown形式提供）
 
 重要提示：
-1. example字段必须是纯文本，不能是对象
+1. explanation支持Markdown格式，可以使用表格、标题、列表等
 2. 示例句子可以根据词义自行生成
 ${isGerman ? '3. 名词必须标注性别（der/die/das）\n4. 复数名词标注 pl.' : '3. 非德语语言不需要性别标记'}
 
 请为以下单词补全信息：
 ${wordsList}
 
-返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "...", "explanation": "...", "example": "..."}]`;
+返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "...", "explanation": "...", "example": ""}]`;
 
     let retries = 0;
     const maxRetries = 2;
@@ -3574,6 +3578,9 @@ ${wordsList}
     
     const isGerman = this.currentModule === 'german';
     const isEnglish = this.currentModule === 'english';
+    const isJapanese = this.currentModule === 'japanese';
+    const isDefaultModule = isGerman || isEnglish || isJapanese;
+    const isCustomModule = !isDefaultModule && this.modules[this.currentModule]?.isCustom;
     const isBatchMode = this.batchMode[type];
     const isSelected = this.selectedEntries[type].has(entry.id);
     
@@ -3628,8 +3635,10 @@ ${wordsList}
                 <span class="text-lg font-bold text-primary-900">${entry.original}</span>
               </div>
               <div class="text-primary-700 mb-2">${entry.translation || '<span class="text-gray-400">暂无翻译</span>'}</div>
-              ${entry.explanation ? `<div class="text-sm text-primary-500 mb-1">💡 ${entry.explanation}</div>` : ''}
-              ${entry.example ? `<div class="text-sm text-accent-600">📖 ${entry.example}</div>` : ''}
+              ${entry.explanation ? (isCustomModule ? 
+                `<div class="text-sm text-primary-600 mb-2 prose prose-sm max-w-none markdown-content">${marked.parse(entry.explanation)}</div>` : 
+                `<div class="text-sm text-primary-500 mb-1">💡 ${entry.explanation}</div>`) : ''}
+              ${entry.example && !isCustomModule ? `<div class="text-sm text-accent-600">📖 ${entry.example}</div>` : ''}
             </div>
           </div>
           ${actionsHtml}
@@ -3644,6 +3653,11 @@ ${wordsList}
     if (!entry) return;
     
     const isGerman = this.currentModule === 'german';
+    const isEnglish = this.currentModule === 'english';
+    const isJapanese = this.currentModule === 'japanese';
+    const isDefaultModule = isGerman || isEnglish || isJapanese;
+    const isCustomModule = !isDefaultModule && this.modules[this.currentModule]?.isCustom;
+    
     const genderField = isGerman && entry.type === 'word' ? `
       <div>
         <label class="block text-sm font-medium text-primary-700 mb-1">词性</label>
@@ -3661,7 +3675,13 @@ ${wordsList}
       </div>
     ` : '';
     
-    const explanationField = entry.type !== 'sentence' ? `
+    const explanationField = entry.type !== 'sentence' ? (isCustomModule ? `
+      <div>
+        <label class="block text-sm font-medium text-primary-700 mb-1">用法解释（支持 Markdown 格式）</label>
+        <textarea id="edit-explanation" rows="6" placeholder="支持 Markdown 表格、标题、列表等格式" class="w-full px-3 py-2 border border-primary-200 rounded-lg font-mono text-sm">${entry.explanation || ''}</textarea>
+        <p class="text-xs text-primary-400 mt-1">支持 Markdown 语法：**粗体**、*斜体*、| 表格 |、# 标题、- 列表</p>
+      </div>
+    ` : `
       <div>
         <label class="block text-sm font-medium text-primary-700 mb-1">用法解释</label>
         <textarea id="edit-explanation" rows="2" class="w-full px-3 py-2 border border-primary-200 rounded-lg">${entry.explanation || ''}</textarea>
@@ -3670,7 +3690,7 @@ ${wordsList}
         <label class="block text-sm font-medium text-primary-700 mb-1">例句</label>
         <textarea id="edit-example" rows="2" class="w-full px-3 py-2 border border-primary-200 rounded-lg">${entry.example || ''}</textarea>
       </div>
-    ` : '';
+    `) : '';
     
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
