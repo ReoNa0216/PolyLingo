@@ -3206,12 +3206,18 @@ ${wordsList}
   // 修复AI返回的JSON中的格式问题
   fixMalformedJSON(jsonStr) {
     // 处理AI返回的JSON中未转义的中文引号
-    // 中文引号在JSON字符串中会导致解析失败
+    // 中文引号在JSON字符串值内部会导致解析失败
     let fixed = jsonStr;
     
-    // 将中文左双引号"(上双引号) 和 右双引号"(下双引号) 替换为转义的ASCII引号
-    // Unicode: \u201c = 左双引号, \u201d = 右双引号
-    fixed = fixed.replace(/["“”]/g, '\\"');
+    // 方法：匹配所有JSON字符串值（包括内部的内容），然后处理其中的中文引号
+    // 匹配模式："键": "值" 中的值部分
+    const stringValuePattern = /"([^"\\]*(?:\\.[^"\\]*)*)"/g;
+    
+    fixed = fixed.replace(stringValuePattern, (match, content) => {
+      // 在字符串内容中，将中文引号替换为转义的英文引号
+      const escapedContent = content.replace(/["“”]/g, '\\"');
+      return '"' + escapedContent + '"';
+    });
     
     return fixed;
   },
