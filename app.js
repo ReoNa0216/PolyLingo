@@ -5254,7 +5254,7 @@ Requirements:
     await this.updateTrendChart();
     await this.updateModuleDistributionChart(records);
     await this.updateTestScoreChart();
-    await this.updateReviewCountChart();
+    await this.updateReviewProgressChart();
   },
   
   // Get filtered records by module
@@ -5503,42 +5503,34 @@ Requirements:
     });
   },
   
-  // Update Review Count Chart
-  async updateReviewCountChart() {
-    const moduleId = document.getElementById('review-count-module-select')?.value || 'all';
+  // Update Learning Progress Chart - 显示各语言已复习条目占总条目的百分比
+  async updateReviewProgressChart() {
+    // 获取各模块的学习进度
+    const progressData = [];
+    const labels = [];
+    const colors = ['#f59e0b', '#10b981', '#486581', '#8b5cf6', '#ec4899'];
     
-    const records = await db.records.toArray();
-    const filteredRecords = this.getFilteredRecords(records, moduleId);
+    for (const [key, mod] of Object.entries(this.modules)) {
+      const entries = await db.entries.where('moduleId').equals(key).toArray();
+      const totalEntries = entries.length;
+      const reviewedEntries = entries.filter(e => e.srsLevel > 0).length;
+      const percentage = totalEntries > 0 ? Math.round((reviewedEntries / totalEntries) * 100) : 0;
+      
+      labels.push(mod.name);
+      progressData.push(percentage);
+    }
     
-    // Get review records (based on test records with action='review' or calculate from test duration)
-    const tests = await db.tests.orderBy('createdAt').toArray();
-    const filteredTests = this.getFilteredTests(tests, moduleId);
-    
-    // Count reviews per day from test records
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split('T')[0];
-    });
-    
-    const dailyReviews = {};
-    filteredTests.forEach(t => {
-      const date = new Date(t.createdAt).toISOString().split('T')[0];
-      dailyReviews[date] = (dailyReviews[date] || 0) + (t.questions ? t.questions.length : 0);
-    });
-    
-    const data = last7Days.map(d => dailyReviews[d] || 0);
-    
-    const reviewCtx = document.getElementById('review-count-chart').getContext('2d');
-    if (this.charts.review) this.charts.review.destroy();
-    this.charts.review = new Chart(reviewCtx, {
+    const reviewCtx = document.getElementById('review-progress-chart').getContext('2d');
+    if (this.charts.reviewProgress) this.charts.reviewProgress.destroy();
+    this.charts.reviewProgress = new Chart(reviewCtx, {
       type: 'bar',
       data: {
-        labels: last7Days.map(d => d.slice(5)),
+        labels: labels,
         datasets: [{
-          label: '复习题目数',
-          data: data,
-          backgroundColor: '#486581'
+          label: '学习进度',
+          data: progressData,
+          backgroundColor: colors.slice(0, labels.length),
+          borderRadius: 6
         }]
       },
       options: {
@@ -5547,16 +5539,24 @@ Requirements:
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: context => `复习题目: ${context.raw} 题`
+              label: context => {
+                const moduleName = context.label;
+                const percentage = context.raw;
+                return `${moduleName}: ${percentage}% 已复习`;
+              }
             }
           }
         },
         scales: { 
           y: { 
             beginAtZero: true,
+            max: 100,
             title: {
               display: true,
-              text: '题目数'
+              text: '已复习条目占比 (%)'
+            },
+            ticks: {
+              callback: value => value + '%'
             }
           }
         }
