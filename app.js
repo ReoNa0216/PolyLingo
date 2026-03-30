@@ -2875,6 +2875,8 @@ ${wordsList}
         entries.forEach((entry, index) => {
           if (enrichedData[index]) {
             const enriched = enrichedData[index];
+            // 更新original保留AI添加的注音（如日语假名）
+            entry.original = enriched.original || entry.original;
             entry.translation = enriched.translation || '';
             entry.wordType = enriched.wordType || entry.wordType;
             entry.gender = enriched.gender || entry.gender;
@@ -3023,7 +3025,7 @@ ${wordsList}
               { role: 'user', content: prompt }
             ],
             temperature: 0.3,
-            max_tokens: settings.maxTokens || 8000
+            max_tokens: settings.maxTokens || (isJapanese ? 16000 : 8000)
           })
         });
         
@@ -3045,6 +3047,8 @@ ${wordsList}
           entries.forEach((entry, index) => {
             if (enrichedData[index]) {
               const enriched = enrichedData[index];
+              // 更新original保留AI添加的注音（如日语假名）
+              entry.original = enriched.original || entry.original;
               entry.translation = enriched.translation || '';
               entry.wordType = enriched.wordType || '';
               entry.gender = enriched.gender || '';
