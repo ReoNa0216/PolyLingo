@@ -5136,91 +5136,309 @@ Requirements:
       Math.round(tests.reduce((sum, t) => sum + t.score, 0) / tests.length) : 0;
     document.getElementById('stat-avg-score').textContent = `${avgScore}%`;
     
+    // Populate module selects
+    await this.populateModuleSelects();
+    
     // Render charts
     await this.renderCharts(records, tests);
   },
   
-  async renderCharts(records, tests) {
-    // Study trend (last 7 days)
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split('T')[0];
+  // Populate module dropdowns
+  async populateModuleSelects() {
+    const modules = await db.modules.toArray();
+    const moduleOptions = modules.map(m => 
+      `<option value="${m.id}">${m.name}</option>`
+    ).join('');
+    
+    const selects = ['trend-module-select', 'test-score-module-select', 'review-count-module-select'];
+    selects.forEach(id => {
+      const select = document.getElementById(id);
+      if (select) {
+        select.innerHTML = '<option value="all">全部模块</option>' + moduleOptions;
+      }
     });
+  },
+  
+  async renderCharts(records, tests) {
+    // Initialize with default views
+    await this.updateTrendChart();
+    await this.updateModuleDistributionChart(records);
+    await this.updateTestScoreChart();
+    await this.updateReviewCountChart();
+  },
+  
+  // Get filtered records by module
+  getFilteredRecords(records, moduleId) {
+    if (moduleId === 'all' || !moduleId) return records;
+    return records.filter(r => r.moduleId === moduleId);
+  },
+  
+  // Get filtered tests by module
+  getFilteredTests(tests, moduleId) {
+    if (moduleId === 'all' || !moduleId) return tests;
+    return tests.filter(t => t.moduleId === moduleId);
+  },
+  
+  // Update Study Trend Chart
+  async updateTrendChart() {
+    const moduleId = document.getElementById('trend-module-select')?.value || 'all';
+    const viewType = document.getElementById('trend-view-select')?.value || 'week';
+    
+    const records = await db.records.toArray();
+    const filteredRecords = this.getFilteredRecords(records, moduleId);
+    
+    let labels, data, labelFormat;
+    
+    if (viewType === 'week') {
+      // Last 7 days
+      labels = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return d;
+      });
+      labelFormat = d => `${d.getMonth() + 1}/${d.getDate()}`;
+    } else if (viewType === 'weeks') {
+      // Last 8 weeks
+      labels = Array.from({ length: 8 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (7 * (7 - i)));
+        return d;
+      });
+      labelFormat = d => `${d.getMonth() + 1}/${d.getDate()}`;
+    } else {
+      // Last 12 months
+      labels = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (11 - i));
+        return d;
+      });
+      labelFormat = d => `${d.getFullYear()}/${d.getMonth() + 1}`;
+    }
     
     const dailyMinutes = {};
-    records.forEach(r => {
-      const date = new Date(r.createdAt).toISOString().split('T')[0];
-      dailyMinutes[date] = (dailyMinutes[date] || 0) + r.duration;
+    filteredRecords.forEach(r => {
+      const date = new Date(r.createdAt);
+      let key;
+      if (viewType === 'months') {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else if (viewType === 'weeks') {
+        // Group by week
+        const weekStart = new Date(date);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = date.toISOString().split('T')[0];
+      }
+      dailyMinutes[key] = (dailyMinutes[key] || 0) + r.duration;
+    });
+    
+    data = labels.map(d => {
+      let key;
+      if (viewType === 'months') {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      } else if (viewType === 'weeks') {
+        const weekStart = new Date(d);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = d.toISOString().split('T')[0];
+      }
+      return dailyMinutes[key] || 0;
     });
     
     const trendCtx = document.getElementById('study-trend-chart').getContext('2d');
     if (this.charts.trend) this.charts.trend.destroy();
+    
     this.charts.trend = new Chart(trendCtx, {
-      type: 'line',
+      type: viewType === 'week' ? 'line' : 'bar',
       data: {
-        labels: last7Days.map(d => d.slice(5)),
+        labels: labels.map(labelFormat),
         datasets: [{
           label: '学习时长（分钟）',
-          data: last7Days.map(d => dailyMinutes[d] || 0),
+          data: data,
           borderColor: '#f59e0b',
-          backgroundColor: 'rgba(245, 158, 11, 0.1)',
-          fill: true,
+          backgroundColor: viewType === 'week' ? 'rgba(245, 158, 11, 0.1)' : '#f59e0b',
+          fill: viewType === 'week',
           tension: 0.4
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => `学习时长: ${context.raw} 分钟`
+            }
+          }
+        },
+        scales: { 
+          y: { 
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: '学习时长（分钟）'
+            }
+          }
+        }
       }
     });
-    
-    // Module distribution
+  },
+  
+  // Update Module Distribution Chart (doughnut with percentages)
+  async updateModuleDistributionChart(records) {
     const moduleMinutes = {};
     records.forEach(r => {
       const mod = r.moduleId || 'german';
       moduleMinutes[mod] = (moduleMinutes[mod] || 0) + r.duration;
     });
     
+    const labels = Object.keys(moduleMinutes).map(k => (this.modules[k] && this.modules[k].name) || k);
+    const data = Object.values(moduleMinutes);
+    const total = data.reduce((sum, v) => sum + v, 0);
+    
+    // Generate distinct colors
+    const colors = ['#f59e0b', '#10b981', '#486581', '#8b5cf6', '#ec4899', '#14b8a6'];
+    
     const distCtx = document.getElementById('module-distribution-chart').getContext('2d');
     if (this.charts.dist) this.charts.dist.destroy();
     this.charts.dist = new Chart(distCtx, {
       type: 'doughnut',
       data: {
-        labels: Object.keys(moduleMinutes).map(k => (this.modules[k] && this.modules[k].name) || k),
+        labels: labels,
         datasets: [{
-          data: Object.values(moduleMinutes),
-          backgroundColor: ['#486581', '#f59e0b', '#10b981', '#8b5cf6']
+          data: data,
+          backgroundColor: colors.slice(0, data.length)
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { position: 'bottom' } }
+        plugins: {
+          legend: { 
+            position: 'bottom',
+            labels: {
+              generateLabels: (chart) => {
+                const data = chart.data;
+                return data.labels.map((label, i) => ({
+                  text: `${label} (${((data.datasets[0].data[i] / total) * 100).toFixed(1)}%)`,
+                  fillStyle: data.datasets[0].backgroundColor[i],
+                  hidden: false,
+                  index: i
+                }));
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: context => {
+                const value = context.raw;
+                const percentage = ((value / total) * 100).toFixed(1);
+                return `${context.label}: ${value}分钟 (${percentage}%)`;
+              }
+            }
+          }
+        }
       }
     });
+  },
+  
+  // Update Test Score Chart
+  async updateTestScoreChart() {
+    const moduleId = document.getElementById('test-score-module-select')?.value || 'all';
     
-    // Test score trend
+    const tests = await db.tests.orderBy('createdAt').toArray();
+    const filteredTests = this.getFilteredTests(tests, moduleId);
+    
+    // Group by date and add sequence number for same day
+    const testGroups = {};
+    filteredTests.forEach(t => {
+      const date = new Date(t.createdAt).toISOString().split('T')[0];
+      if (!testGroups[date]) testGroups[date] = [];
+      testGroups[date].push(t);
+    });
+    
+    // Build labels and data
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+    
+    Object.keys(testGroups).sort().forEach(date => {
+      testGroups[date].forEach((t, idx) => {
+        const displayDate = date.slice(5); // MM-DD
+        labels.push(`${displayDate}${testGroups[date].length > 1 ? `(${idx + 1})` : ''}`);
+        data.push(t.score);
+        backgroundColors.push(t.score >= 80 ? '#10b981' : t.score >= 60 ? '#f59e0b' : '#ef4444');
+      });
+    });
+    
+    // Show last 15 tests max
+    const displayCount = Math.min(15, labels.length);
+    const displayLabels = labels.slice(-displayCount);
+    const displayData = data.slice(-displayCount);
+    const displayColors = backgroundColors.slice(-displayCount);
+    
     const testCtx = document.getElementById('test-score-chart').getContext('2d');
     if (this.charts.test) this.charts.test.destroy();
     this.charts.test = new Chart(testCtx, {
       type: 'bar',
       data: {
-        labels: tests.slice(-10).map((_, i) => `测试${i + 1}`),
+        labels: displayLabels,
         datasets: [{
           label: '得分',
-          data: tests.slice(-10).map(t => t.score),
-          backgroundColor: '#486581'
+          data: displayData,
+          backgroundColor: displayColors
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { min: 0, max: 100 } }
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => `得分: ${context.raw}%`
+            }
+          }
+        },
+        scales: { 
+          y: { 
+            min: 0, 
+            max: 100,
+            title: {
+              display: true,
+              text: '得分 (%)'
+            }
+          }
+        }
       }
     });
+  },
+  
+  // Update Review Count Chart
+  async updateReviewCountChart() {
+    const moduleId = document.getElementById('review-count-module-select')?.value || 'all';
     
-    // Review count per day
+    const records = await db.records.toArray();
+    const filteredRecords = this.getFilteredRecords(records, moduleId);
+    
+    // Get review records (based on test records with action='review' or calculate from test duration)
+    const tests = await db.tests.orderBy('createdAt').toArray();
+    const filteredTests = this.getFilteredTests(tests, moduleId);
+    
+    // Count reviews per day from test records
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return d.toISOString().split('T')[0];
+    });
+    
+    const dailyReviews = {};
+    filteredTests.forEach(t => {
+      const date = new Date(t.createdAt).toISOString().split('T')[0];
+      dailyReviews[date] = (dailyReviews[date] || 0) + (t.questions ? t.questions.length : 0);
+    });
+    
+    const data = last7Days.map(d => dailyReviews[d] || 0);
+    
     const reviewCtx = document.getElementById('review-count-chart').getContext('2d');
     if (this.charts.review) this.charts.review.destroy();
     this.charts.review = new Chart(reviewCtx, {
@@ -5228,20 +5446,30 @@ Requirements:
       data: {
         labels: last7Days.map(d => d.slice(5)),
         datasets: [{
-          label: '复习卡片数',
-          data: last7Days.map(d => 
-            records.filter(r => 
-              new Date(r.createdAt).toISOString().split('T')[0] === d && 
-              r.action === 'review'
-            ).length * 10 // Estimate
-          ),
-          backgroundColor: '#f59e0b'
+          label: '复习题目数',
+          data: data,
+          backgroundColor: '#486581'
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => `复习题目: ${context.raw} 题`
+            }
+          }
+        },
+        scales: { 
+          y: { 
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: '题目数'
+            }
+          }
+        }
       }
     });
   },

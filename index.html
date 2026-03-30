@@ -615,20 +615,49 @@
           
           <!-- Charts -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 学习趋势 -->
             <div class="bg-white rounded-xl p-6 shadow-lg border border-primary-100">
-              <h4 class="text-lg font-bold mb-4">学习趋势（近7天）</h4>
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h4 class="text-lg font-bold">学习趋势</h4>
+                <div class="flex flex-wrap gap-2">
+                  <select id="trend-module-select" onchange="app.updateTrendChart()" class="text-sm px-2 py-1 border border-primary-200 rounded-lg">
+                    <option value="all">全部模块</option>
+                  </select>
+                  <select id="trend-view-select" onchange="app.updateTrendChart()" class="text-sm px-2 py-1 border border-primary-200 rounded-lg">
+                    <option value="week">近7天</option>
+                    <option value="weeks">连续数周</option>
+                    <option value="months">连续数月</option>
+                  </select>
+                </div>
+              </div>
               <canvas id="study-trend-chart"></canvas>
             </div>
+            
+            <!-- 各模块学习时长分布 -->
             <div class="bg-white rounded-xl p-6 shadow-lg border border-primary-100">
               <h4 class="text-lg font-bold mb-4">各模块学习时长分布</h4>
               <canvas id="module-distribution-chart"></canvas>
             </div>
+            
+            <!-- 测试成绩趋势 -->
             <div class="bg-white rounded-xl p-6 shadow-lg border border-primary-100">
-              <h4 class="text-lg font-bold mb-4">测试成绩趋势</h4>
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-bold">测试成绩趋势</h4>
+                <select id="test-score-module-select" onchange="app.updateTestScoreChart()" class="text-sm px-2 py-1 border border-primary-200 rounded-lg">
+                  <option value="all">全部模块</option>
+                </select>
+              </div>
               <canvas id="test-score-chart"></canvas>
             </div>
+            
+            <!-- 每日复习量 -->
             <div class="bg-white rounded-xl p-6 shadow-lg border border-primary-100">
-              <h4 class="text-lg font-bold mb-4">每日复习量</h4>
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-bold">每日复习量</h4>
+                <select id="review-count-module-select" onchange="app.updateReviewCountChart()" class="text-sm px-2 py-1 border border-primary-200 rounded-lg">
+                  <option value="all">全部模块</option>
+                </select>
+              </div>
               <canvas id="review-count-chart"></canvas>
             </div>
           </div>
