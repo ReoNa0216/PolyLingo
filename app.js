@@ -5969,43 +5969,52 @@ Requirements:
     prompt += `4. word类型必须补充：wordType（词性）\n`;
     prompt += `5. explanation字段支持Markdown格式（表格、标题、列表）\n`;
     prompt += `6. example字段可为空（如果例句已在explanation中）\n`;
-    prompt += `7. 可用占位符：{{original}}（原文）、{{translation}}（翻译）、{{wordType}}（词性）、{{explanation}}（解释）、{{example}}（例句）\n`;
+    prompt += `7. 可用占位符说明：\n`;
+    prompt += `   - 基础字段：{{original}}（原文）、{{translation}}（翻译）、{{wordType}}（词性）、{{gender}}（性别/阴阳性）\n`;
+    prompt += `   - 词源分类：{{wordSource}}（词源：汉字/固有/外来/拉丁等）、{{etymology}}（词源解释）\n`;
+    prompt += `   - 语法特征：{{particles}}（助词/介词搭配）、{{conjugation}}（活用/变位）、{{conjugationFormal}}（格式体）、{{conjugationInformal}}（非格式体）、{{pluralForm}}（复数形式）\n`;
+    prompt += `   - 音标发音：{{romanization}}（罗马音）、{{IPA}}（国际音标）、{{pronunciation}}（发音提示）、{{liaison}}（连读）\n`;
+    prompt += `   - 例句变体：{{exampleFormal}}（正式体）、{{exampleInformal}}（口语体）、{{exampleWritten}}（书面语）、{{exampleSpoken}}（口语）\n`;
+    prompt += `   - 含义解析：{{literalMeaning}}（字面意思）、{{actualMeaning}}（实际含义）、{{nuance}}（语义差别）、{{usageContext}}（使用场景）\n`;
+    prompt += `   - 语法成分：{{subject}}（主语）、{{predicate}}（谓语）、{{tenseMood}}（时态语气）、{{structure}}（句子结构）\n`;
+    prompt += `   - 文化近义：{{culturalNote}}（文化注释）、{{synonym}}（近义词）、{{antonym}}（反义词）、{{commonMistake}}（常见错误）、{{register}}（语域等级）、{{speechLevel}}（敬语等级）\n`;
     
     if (wordReq) {
       prompt += `\n【单词（word）提取要求】\n${wordReq}\n`;
-      prompt += `\n单词返回格式示例：\n`;
+      prompt += `\n单词返回格式示例（可根据需要选择占位符组合）：\n`;
       prompt += `{\n`;
       prompt += `  "type": "word",\n`;
       prompt += `  "original": "{{original}}",\n`;
       prompt += `  "translation": "{{translation}}",\n`;
-      prompt += `  "wordType": "{{wordType}}",\n`;
-      prompt += `  "explanation": "## {{original}}\n\n| 项目 | 内容 |\n|------|------|\n| 词性 | {{wordType}} |",\n`;
+      prompt += `  "wordType": "{{wordType}} {{wordSource}}",\n`;
+      prompt += `  "gender": "{{gender}}",\n`;
+      prompt += `  "explanation": "## {{original}} ({{translation}})\n\n### 词源与分类\n{{wordSource}} - {{etymology}}\n\n### 语法特征\n{{conjugation}}\n\n### 使用场景\n{{usageContext}}\n\n### 近义词辨析\n| 词汇 | 语域 | 差异 |\n|------|------|------|\n| {{synonym}} | {{register}} | {{nuance}} |",\n`;
       prompt += `  "example": ""\n`;
       prompt += `}\n`;
     }
     
     if (phraseReq) {
       prompt += `\n【短语（phrase）提取要求】\n${phraseReq}\n`;
-      prompt += `\n短语返回格式示例：\n`;
+      prompt += `\n短语返回格式示例（建议使用丰富的Markdown表格）：\n`;
       prompt += `{\n`;
       prompt += `  "type": "phrase",\n`;
       prompt += `  "original": "{{original}}",\n`;
       prompt += `  "translation": "{{translation}}",\n`;
       prompt += `  "wordType": "",\n`;
-      prompt += `  "explanation": "{{explanation}}",\n`;
+      prompt += `  "explanation": "## {{original}}\n\n### 结构分解\n{{structure}}\n\n### 字面 vs 实际\n| 层面 | 含义 |\n|------|------|\n| 字面 | {{literalMeaning}} |\n| 实际 | {{actualMeaning}} |\n\n### 语域与语体\n{{register}} / {{speechLevel}}\n\n### 使用场景\n{{usageContext}}\n\n### 近义表达\n| 表达 | 语域 | 例句 |\n|------|------|------|\n| {{synonym}} | {{register}} | {{example}} |",\n`;
       prompt += `  "example": ""\n`;
       prompt += `}\n`;
     }
     
     if (sentenceReq) {
       prompt += `\n【语句（sentence）提取要求】\n${sentenceReq}\n`;
-      prompt += `\n语句返回格式示例：\n`;
+      prompt += `\n语句返回格式示例（建议包含语法分析和语体对比）：\n`;
       prompt += `{\n`;
       prompt += `  "type": "sentence",\n`;
       prompt += `  "original": "{{original}}",\n`;
       prompt += `  "translation": "{{translation}}",\n`;
       prompt += `  "wordType": "",\n`;
-      prompt += `  "explanation": "",\n`;
+      prompt += `  "explanation": "### 🎯 使用场景\n{{usageContext}} ({{tenseMood}})\n\n### 📝 原文\n{{original}}\n\n### 🔤 音标\n{{romanization}} / {{IPA}}\n\n### 🗣️ 发音提示\n{{pronunciation}} / {{liaison}}\n\n### 📑 语法分析\n| 成分 | 说明 |\n|------|------|\n| 主语 | {{subject}} |\n| 谓语 | {{predicate}} |\n| 时态 | {{tenseMood}} |\n| 结构 | {{structure}} |\n\n### 🔄 语体转换\n| 语体 | 表达 | 适用场景 |\n|------|------|----------|\n| 正式体 | {{exampleFormal}} | 正式场合 |\n| 非正式体 | {{exampleInformal}} | 日常交流 |",\n`;
       prompt += `  "example": ""\n`;
       prompt += `}\n`;
     }
@@ -6023,6 +6032,53 @@ Requirements:
     
     // 滚动到预览区
     document.getElementById('prompt-preview-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  },
+  
+  // 切换占位符帮助面板显示/隐藏
+  togglePlaceholderHelp() {
+    const panel = document.getElementById('placeholder-help-panel');
+    if (panel) {
+      panel.classList.toggle('hidden');
+    }
+  },
+  
+  // 插入占位符到Prompt编辑框
+  insertPlaceholder(placeholder) {
+    const textarea = document.getElementById('new-module-final-prompt');
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end, text.length);
+    
+    textarea.value = before + placeholder + after;
+    textarea.selectionStart = textarea.selectionEnd = start + placeholder.length;
+    textarea.focus();
+    
+    // 触发input事件更新隐藏字段
+    textarea.dispatchEvent(new Event('input'));
+    document.getElementById('new-module-prompt').value = textarea.value;
+  },
+  
+  // 复制Prompt到剪贴板
+  async copyPromptToClipboard() {
+    const textarea = document.getElementById('new-module-final-prompt');
+    if (!textarea || !textarea.value.trim()) {
+      alert('Prompt为空，请先生成Prompt');
+      return;
+    }
+    
+    try {
+      await navigator.clipboard.writeText(textarea.value);
+      alert('已复制到剪贴板！');
+    } catch (err) {
+      // 降级方案：选中文本
+      textarea.select();
+      document.execCommand('copy');
+      alert('已复制到剪贴板！');
+    }
   },
   
   closeAddModuleModal() {
