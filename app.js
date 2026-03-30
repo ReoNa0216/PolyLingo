@@ -939,14 +939,15 @@ ${mod.customPrompt}
       ? `语言过滤：只提取日语内容（包括汉字、平假名、片假名），忽略所有中文文本。`
       : `语言过滤：只提取${mod.language}内容，忽略中文文本。`;
     
-    // 非默认模块的基础说明
+    // 非默认模块的基础说明（强制保留，确保与系统模块匹配）
     const customModuleBase = !isDefaultModule ? `
-基础要求：
-1. 从原文中提取学习条目，包括单词、短语、句子
-2. 每个条目包含：type（word/phrase/sentence）、original（原文）、translation（中文翻译）
-3. 单词word类型还需补充：wordType（词性）、gender（性（可选））、explanation（用法解释）、example（例句）
-4. 短语phrase类型需补充：explanation、example
-5. 句子sentence类型仅需：original、translation` : '';
+【必填 - 系统约束】
+1. 条目类型 type 必须为以下三种之一："word"(单词) / "phrase"(短语) / "sentence"(句子)
+2. 每个条目必须包含：type、original（原文）、translation（中文翻译）
+3. word类型必须补充：wordType（词性）、explanation（用法）、example（例句）
+4. phrase类型必须补充：explanation、example
+5. sentence类型仅需：original、translation
+6. example字段必须是纯文本字符串，不能是对象` : '';
     
     const prompt = `从以下${mod.name}教材内容中积极提取学习条目。这是第 ${chunkIndex}/${totalChunks} 部分。
 
@@ -2765,7 +2766,7 @@ ${chunk.substring(0, 8000)}
       
       // 确认导入
       const preview = words.slice(0, 10).join(', ');
-      const confirmed = confirm(`解析到 ${words.length} 个单词\n\n预览前10个：${preview}${words.length > 10 ? '...' : ''}\n\nAI将自动补全：词性、中文翻译、用法解释、例句\n\n确认导入？`);
+      const confirmed = confirm(`解析到 ${words.length} 个词条\n\n预览前10个：${preview}${words.length > 10 ? '...' : ''}\n\n确认导入？`);
       if (!confirmed) return;
       
       const progressDiv = document.getElementById('bulk-import-progress');
@@ -3045,8 +3046,8 @@ ${wordsList}
     
     for (const line of lines) {
       const trimmed = line.trim();
-      // 过滤空行、数字、过短的内容
-      if (!trimmed || trimmed.length < 2 || /^\d+$/.test(trimmed)) continue;
+      // 过滤空行、数字、过短的内容（单字符也允许，支持韩语等单字符词汇）
+      if (!trimmed || trimmed.length < 1 || /^\d+$/.test(trimmed)) continue;
       
       // 去重
       if (seen.has(trimmed.toLowerCase())) continue;
@@ -3091,7 +3092,9 @@ ${wordsList}
 【用户自定义补全要求】
 ${mod.customPrompt}
 
-请根据以上要求补全词条信息。` : `
+请根据以上要求补全词条信息。
+
+重要：返回的example字段必须是纯文本字符串，不能是对象。` : `
 
 【默认补全要求】
 为每个词条提供准确的词性标注、中文翻译、用法解释和实用例句。示例句子应展示该词在常见场景中的正确用法。`) : '';
@@ -3140,18 +3143,19 @@ ${wordsList}
 返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "", "explanation": "...", "example": "..."}]`
       : `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。${customPrompt}
 
-请严格按照JSON格式返回数组，每个词条包含：
+【系统约束 - 必须遵守】
+- type: 必须为"word"（批量导入默认为单词）
 - original: 原词（必须与输入一致）
 - translation: 简洁准确的中文翻译
 - wordType: 词类型（如英语的Noun/名词、Verb/动词、Adjective/形容词等）
 ${genderDesc}
-- explanation: 用法解释（100字以内，包括搭配、语义、使用场景）
-- example: 示例句子（原文 + 中文翻译，展示该词正确用法）
+- explanation: 用法解释（100字以内）
+- example: 示例句子（必须是纯文本字符串，格式为"原文 中文翻译"）
 
 重要提示：
-1. 示例句子可以根据词义自行生成，必须正确展示该词的用法
-${isGerman ? '2. 名词必须标注性别（der/die/das）\n3. 复数名词标注 pl.' : '2. 非德语语言不需要性别标记'}
-4. 返回的原词必须与输入完全一致
+1. example字段必须是纯文本，不能是对象
+2. 示例句子可以根据词义自行生成
+${isGerman ? '3. 名词必须标注性别（der/die/das）\n4. 复数名词标注 pl.' : '3. 非德语语言不需要性别标记'}
 
 请为以下单词补全信息：
 ${wordsList}
@@ -3258,7 +3262,12 @@ ${wordsList}
               entry.wordType = enriched.wordType || '';
               entry.gender = enriched.gender || '';
               entry.explanation = enriched.explanation || '';
-              entry.example = enriched.example || '';
+              // 处理example可能是对象的情况（如{original, translation}）
+              if (typeof enriched.example === 'object' && enriched.example !== null) {
+                entry.example = enriched.example.original ? `${enriched.example.original} ${enriched.example.translation || ''}` : JSON.stringify(enriched.example);
+              } else {
+                entry.example = enriched.example || '';
+              }
             } else {
               console.warn(`No enrichment data for entry ${index}:`, entry.original);
             }
