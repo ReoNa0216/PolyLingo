@@ -1012,8 +1012,16 @@ ${chunk.substring(0, 5000)}
     });
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`API error: ${response.status} - ${(errorData.error && errorData.error.message) || 'Unknown error'}`);
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      let errorMessage = 'Unknown error';
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = (errorData.error && errorData.error.message) || errorData.message || errorText;
+      } catch (e) {
+        errorMessage = errorText || `HTTP ${response.status}`;
+      }
+      throw new Error(`API error: ${response.status} - ${errorMessage}`);
     }
     
     const data = await response.json();
@@ -5240,8 +5248,12 @@ Requirements:
       db.settings.get('proxyUrl')
     ]);
     
+    // 移除apiUrl末尾的斜杠，避免双斜杠问题
+    let apiUrlValue = (apiUrl && apiUrl.value) || 'https://api.openai.com/v1';
+    apiUrlValue = apiUrlValue.replace(/\/$/, '');
+    
     return {
-      apiUrl: (apiUrl && apiUrl.value) || 'https://api.openai.com/v1',
+      apiUrl: apiUrlValue,
       apiKey: (apiKey && apiKey.value) || '',
       model: (model && model.value) || 'gpt-3.5-turbo',
       maxTokens: (maxTokens && maxTokens.value) || 8000,
