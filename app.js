@@ -211,6 +211,7 @@ const app = {
           language: mod.language,
           code: mod.code || mod.id.substring(0, 2).toUpperCase(),
           flag: mod.flag || 'un',
+          customPrompt: mod.customPrompt,
           isCustom: true
         };
       }
@@ -337,42 +338,60 @@ const app = {
     }
     document.getElementById('module-badge').classList.remove('hidden');
     
-    // 更新批量导入的placeholder
+    // 更新批量导入的placeholder和提示
     const bulkTextarea = document.getElementById('bulk-import-text');
+    const aiHint = document.getElementById('ai-hint-text');
+    const isDefaultModule = ['german', 'japanese', 'english'].includes(moduleId);
+    
     if (bulkTextarea) {
-      const examples = {
-        german: `Depression
+      if (isDefaultModule) {
+        // 默认模块显示详细示例
+        const examples = {
+          german: `Depression
 Sorgen
 Unterstützung
 Symptom
 Traurigkeit`,
-        english: `depression
+          english: `depression
 anxiety
 support
 symptom
 coping`,
-        japanese: `うつ病
+          japanese: `うつ病
 不安
 支援
 症状
 心理的`
-      };
-      const placeholderText = examples[moduleId] || examples.english;
-      bulkTextarea.placeholder = `粘贴单词列表，每行一个或空格分隔，AI将自动识别词性并补全信息
+        };
+        const placeholderText = examples[moduleId] || examples.english;
+        bulkTextarea.placeholder = `粘贴单词列表，每行一个或空格分隔，AI将自动识别词性并补全信息
 
 示例：
 ${placeholderText}`;
+      } else {
+        // 非默认模块简化显示
+        bulkTextarea.placeholder = `输入需要学习的内容，每行一个或空格分隔`;
+      }
     }
     
     // 更新AI提示文本
-    const aiHint = document.getElementById('ai-hint-text');
     if (aiHint) {
-      const hints = {
-        german: '💡 AI将自动识别词性（如名词der/die/das、动词等）并生成中文翻译和例句',
-        english: '💡 AI将自动识别词性（如名词、动词等）并生成中文翻译和例句',
-        japanese: '💡 AI将自动识别词性（他动词·五段/一段、自动词·五段/一段、名词、い形容词、な形容动词等），为汉字标注平假名读音，并生成中文翻译和例句'
-      };
-      aiHint.textContent = hints[moduleId] || hints.english;
+      if (isDefaultModule) {
+        const hints = {
+          german: '💡 AI将自动识别词性（如名词der/die/das、动词等）并生成中文翻译和例句',
+          english: '💡 AI将自动识别词性（如名词、动词等）并生成中文翻译和例句',
+          japanese: '💡 AI将自动识别词性（他动词·五段/一段、自动词·五段/一段、名词、い形容词、な形容动词等），为汉字标注平假名读音，并生成中文翻译和例句'
+        };
+        aiHint.textContent = hints[moduleId] || hints.english;
+      } else {
+        // 非默认模块显示用户自定义提示
+        const customPrompt = mod.customPrompt;
+        if (customPrompt) {
+          aiHint.innerHTML = `💡 自定义提取要求：${customPrompt.substring(0, 50)}${customPrompt.length > 50 ? '...' : ''}`;
+        } else {
+          aiHint.textContent = '💡 AI将根据输入内容自动补全信息';
+        }
+      }
     }
     
     // 更新新闻源导入区域
@@ -810,6 +829,15 @@ ${placeholderText}`;
     const isGerman = mod.id === 'german' || mod.language === 'German';
     const isEnglish = mod.id === 'english' || mod.language === 'English';
     const isJapanese = mod.id === 'japanese' || mod.language === 'Japanese';
+    const isDefaultModule = isGerman || isEnglish || isJapanese;
+    
+    // 用户自定义提取要求（非默认模块）
+    const customPrompt = !isDefaultModule && mod.customPrompt ? `
+
+【用户自定义提取要求】
+${mod.customPrompt}
+
+请根据以上要求提取学习条目。` : '';
     
     // 针对德语的特殊提示
     const germanPrompt = isGerman ? `特别注意：这是德语学习材料，请积极、尽可能多地提取学习条目，严格按照以下三类分类：
@@ -904,9 +932,18 @@ ${placeholderText}`;
       ? `语言过滤：只提取日语内容（包括汉字、平假名、片假名），忽略所有中文文本。`
       : `语言过滤：只提取${mod.language}内容，忽略中文文本。`;
     
+    // 非默认模块的基础说明
+    const customModuleBase = !isDefaultModule ? `
+基础要求：
+1. 从原文中提取学习条目，包括单词、短语、句子
+2. 每个条目包含：type（word/phrase/sentence）、original（原文）、translation（中文翻译）
+3. 单词word类型还需补充：wordType（词性）、gender（性（可选））、explanation（用法解释）、example（例句）
+4. 短语phrase类型需补充：explanation、example
+5. 句子sentence类型仅需：original、translation` : '';
+    
     const prompt = `从以下${mod.name}教材内容中积极提取学习条目。这是第 ${chunkIndex}/${totalChunks} 部分。
 
-${germanPrompt}${englishPrompt}${japanesePrompt}
+${germanPrompt}${englishPrompt}${japanesePrompt}${customModuleBase}${customPrompt}
 
 核心要求：
 1. ${languageFilter}
@@ -3018,6 +3055,8 @@ ${wordsList}
   async enrichEntriesCompleteWithAI(entries, settings) {
     const isGerman = this.currentModule === 'german';
     const isJapanese = this.currentModule === 'japanese';
+    const isEnglish = this.currentModule === 'english';
+    const isDefaultModule = isGerman || isJapanese || isEnglish;
     const mod = this.modules[this.currentModule];
     
     const wordsList = entries.map(e => e.original).join('\n');
@@ -3039,8 +3078,16 @@ ${wordsList}
    - 其他：副词、助词、感叹词等
 5. 示例句子中的汉字必须标注平假名读音` : '';
     
+    // 用户自定义补全要求（非默认模块）
+    const customPrompt = !isDefaultModule && mod.customPrompt ? `
+
+【用户自定义补全要求】
+${mod.customPrompt}
+
+请根据以上要求补全词条信息。` : '';
+    
     const prompt = isJapanese 
-      ? `你是一位专业的日语教学专家。请为以下日语单词识别类型并补全完整信息。
+      ? `你是一位专业的日语教学专家。请为以下日语单词识别类型并补全完整信息。${customPrompt}
 
 【重要规则 - 注音规范】
 1. 单词注音（original字段）：
@@ -3081,7 +3128,7 @@ ${wordsList}
 ${wordsList}
 
 返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "", "explanation": "...", "example": "..."}]`
-      : `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。
+      : `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。${customPrompt}
 
 请严格按照JSON格式返回数组，每个词条包含：
 - original: 原词（必须与输入一致）
@@ -5825,6 +5872,7 @@ Requirements:
     document.getElementById('new-module-name').value = '';
     document.getElementById('new-module-lang').value = '';
     document.getElementById('new-module-code').value = '';
+    document.getElementById('new-module-prompt').value = '';
     document.getElementById('new-module-flag').value = 'kr';
     document.querySelectorAll('.module-flag-btn').forEach(btn => {
       btn.classList.remove('ring-2', 'ring-offset-2', 'ring-accent-500');
@@ -5848,9 +5896,10 @@ Requirements:
     const language = document.getElementById('new-module-lang').value.trim();
     const code = document.getElementById('new-module-code').value.trim().toUpperCase();
     const flag = document.getElementById('new-module-flag').value;
+    const customPrompt = document.getElementById('new-module-prompt').value.trim();
     
     if (!name || !language || !code) {
-      alert('请填写所有字段');
+      alert('请填写所有必填字段');
       return;
     }
     
@@ -5863,6 +5912,7 @@ Requirements:
       language: language,
       code: code,
       flag: flag,
+      customPrompt: customPrompt,
       isDefault: false,
       createdAt: new Date()
     });
@@ -5874,6 +5924,7 @@ Requirements:
       language: language,
       code: code,
       flag: flag,
+      customPrompt: customPrompt,
       isCustom: true
     };
     
