@@ -939,20 +939,35 @@ ${mod.customPrompt}
       ? `语言过滤：只提取日语内容（包括汉字、平假名、片假名），忽略所有中文文本。`
       : `语言过滤：只提取${mod.language}内容，忽略中文文本。`;
     
-    // 非默认模块的基础说明（支持Markdown格式的explanation）
-    const customModuleBase = !isDefaultModule ? `
-【必填 - 系统约束】
-1. 条目类型 type 必须为以下三种之一："word"(单词) / "phrase"(短语) / "sentence"(句子)
-2. 每个条目必须包含：type、original（原文）、translation（中文翻译）
-3. word类型必须补充：wordType（词性）、explanation（用法，支持Markdown格式）
-4. phrase类型必须补充：explanation（支持Markdown格式）
-5. sentence类型仅需：original、translation
-6. explanation字段支持Markdown表格、标题、列表等格式，用于展示详细信息
-7. example字段可留空（如果例句已在explanation中以Markdown形式提供）` : '';
+    // 用户口语化输入转换为技术指令（非默认模块）
+    const userRequirement = !isDefaultModule && mod.customPrompt ? mod.customPrompt : '';
+    const customModulePrompt = !isDefaultModule ? `
+
+【用户需求】
+${userRequirement || `提取${mod.name}常用词汇和实用表达，优先日常生活、学习和工作场景中的高频词汇。`}
+
+【系统技术约束 - 必须严格执行】
+1. 返回格式：必须是合法的JSON数组，不要任何Markdown代码块标记
+2. 条目类型 type 必须为以下三种之一："word"(单词) / "phrase"(短语) / "sentence"(句子)
+3. 必填字段：type、original（原文）、translation（中文翻译）
+4. word类型必须补充：wordType（词性）
+5. explanation字段（用法解释）支持Markdown格式，可使用表格、标题、列表等丰富展示
+6. example字段可为空（如果例句已在explanation中以Markdown形式提供）
+7. 根据用户需求自动判断条目类型：单个词汇→word，固定搭配→phrase，完整句子→sentence
+
+【格式示例】
+{
+  "type": "word",
+  "original": "示例词",
+  "translation": "示例翻译",
+  "wordType": "名词",
+  "explanation": "## 详细说明\\n\\n| 项目 | 内容 |\\n|------|------|\\n| 词性 | 名词 |",
+  "example": ""
+}` : '';
     
     const prompt = `从以下${mod.name}教材内容中积极提取学习条目。这是第 ${chunkIndex}/${totalChunks} 部分。
 
-${germanPrompt}${englishPrompt}${japanesePrompt}${customModuleBase}${customPrompt}
+${germanPrompt}${englishPrompt}${japanesePrompt}${customModulePrompt}
 
 核心要求：
 1. ${languageFilter}
@@ -3070,6 +3085,9 @@ ${wordsList}
     
     const wordsList = entries.map(e => e.original).join('\n');
     
+    // 用户口语化需求（非默认模块）
+    const userRequirement = !isDefaultModule && mod.customPrompt ? mod.customPrompt : '';
+    
     const genderDesc = isGerman 
       ? '- gender: 性别标记 m./f./n./pl. 或空（必须为名词标注der/die/das）'
       : '- gender: 非德语语言此字段留空（英语等语言无需性别标记）';
@@ -3145,21 +3163,23 @@ ${mod.customPrompt}
 ${wordsList}
 
 返回格式：[{"original": "...", "translation": "...", "wordType": "...", "gender": "", "explanation": "...", "example": "..."}]`
-      : `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。${customPrompt}
+      : `你是一位专业的${mod.name}教学专家。请为以下${mod.language}单词识别并补全完整信息。
 
-【系统约束 - 必须遵守】
-- type: 必须为"word"（批量导入默认为单词）
-- original: 原词（必须与输入一致）
-- translation: 简洁准确的中文翻译
-- wordType: 词类型（如英语的Noun/名词、Verb/动词、Adjective/形容词等）
+【用户需求】
+${userRequirement || `为每个词条提供准确的词性标注、中文翻译、用法解释和实用例句。`}
+
+【系统技术约束 - 必须严格执行】
+1. 返回格式：合法JSON数组，不要Markdown代码块
+2. 必填字段：type="word", original, translation, wordType
+3. explanation字段支持Markdown格式（表格、标题、列表），用于展示详细信息
+4. example字段可为空（如果例句已在explanation中）
+5. original必须与输入完全一致
+
 ${genderDesc}
-- explanation: 用法解释（支持Markdown格式，可使用表格、标题等展示详细信息）
-- example: 可留空（如果例句已在explanation中以Markdown形式提供）
 
 重要提示：
-1. explanation支持Markdown格式，可以使用表格、标题、列表等
-2. 示例句子可以根据词义自行生成
-${isGerman ? '3. 名词必须标注性别（der/die/das）\n4. 复数名词标注 pl.' : '3. 非德语语言不需要性别标记'}
+1. 示例句子可以根据词义自行生成
+${isGerman ? '2. 名词必须标注性别（der/die/das）\n3. 复数名词标注 pl.' : '2. 非德语语言不需要性别标记'}
 
 请为以下单词补全信息：
 ${wordsList}
