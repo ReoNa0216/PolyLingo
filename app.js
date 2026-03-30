@@ -156,6 +156,16 @@ const app = {
   
   // Initialize default modules
   async initModules() {
+    // 清理已删除的默认模块（不在当前代码定义中的）
+    const allModules = await db.modules.toArray();
+    const validModuleIds = new Set(Object.keys(this.modules));
+    for (const mod of allModules) {
+      if (mod.isDefault && !validModuleIds.has(mod.id)) {
+        console.log('Removing obsolete default module:', mod.id);
+        await db.modules.delete(mod.id);
+      }
+    }
+    
     for (const key in this.modules) {
       const mod = this.modules[key];
       const existing = await db.modules.get(mod.id);
@@ -2853,7 +2863,7 @@ ${wordsList}
             { role: 'user', content: prompt }
           ],
           temperature: 0.3,
-          max_tokens: settings.maxTokens || 8000
+          max_tokens: settings.maxTokens || (isJapanese ? 16000 : 8000)
         })
       });
       
@@ -2865,6 +2875,12 @@ ${wordsList}
       const content = data.choices[0].message.content;
       
       console.log('AI response for', mod.name, ':', content.substring(0, 500));
+      
+      // 检查响应是否被截断
+      if (data.choices[0].finish_reason === 'length') {
+        console.warn('AI response was truncated due to max_tokens limit');
+        throw new Error('Response truncated: increase max_tokens setting');
+      }
       
       // 解析JSON
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -3037,6 +3053,12 @@ ${wordsList}
         const content = data.choices[0].message.content;
         
         console.log('AI response for', mod.name, ':', content.substring(0, 500));
+        
+        // 检查响应是否被截断
+        if (data.choices[0].finish_reason === 'length') {
+          console.warn('AI response was truncated due to max_tokens limit');
+          throw new Error('Response truncated: increase max_tokens setting');
+        }
         
         // 解析JSON
         const jsonMatch = content.match(/\[[\s\S]*\]/);
