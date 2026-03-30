@@ -2882,11 +2882,42 @@ ${wordsList}
         throw new Error('Response truncated: increase max_tokens setting');
       }
       
-      // 解析JSON
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const enrichedData = JSON.parse(jsonMatch[0]);
-        
+      // 解析JSON - 使用多种方式尝试提取
+      let enrichedData = null;
+      const jsonPatterns = [
+        /```json\s*([\s\S]*?)```/,
+        /```\s*([\s\S]*?)```/,
+        /\[[\s\S]*\]/
+      ];
+      
+      for (const pattern of jsonPatterns) {
+        const match = content.match(pattern);
+        if (match) {
+          const jsonStr = match[1] || match[0];
+          try {
+            enrichedData = JSON.parse(jsonStr);
+            break;
+          } catch (e) {
+            // 继续尝试下一个模式
+          }
+        }
+      }
+      
+      // 尝试更宽松的提取
+      if (!enrichedData) {
+        const startIdx = content.indexOf('[');
+        const endIdx = content.lastIndexOf(']');
+        if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+          const jsonStr = content.substring(startIdx, endIdx + 1);
+          try {
+            enrichedData = JSON.parse(jsonStr);
+          } catch (e) {
+            console.error('Failed to parse JSON. Content:', content);
+          }
+        }
+      }
+      
+      if (enrichedData && Array.isArray(enrichedData)) {
         // 将AI补全的信息合并到原条目
         entries.forEach((entry, index) => {
           if (enrichedData[index]) {
@@ -3061,10 +3092,45 @@ ${wordsList}
         }
         
         // 解析JSON
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const enrichedData = JSON.parse(jsonMatch[0]);
-          
+        let enrichedData = null;
+        let parseError = null;
+        
+        // 尝试多种方式提取JSON
+        const jsonPatterns = [
+          /```json\s*([\s\S]*?)```/,  // Markdown code block
+          /```\s*([\s\S]*?)```/,       // Generic code block
+          /\[[\s\S]*\]/                 // Raw JSON array
+        ];
+        
+        for (const pattern of jsonPatterns) {
+          const match = content.match(pattern);
+          if (match) {
+            const jsonStr = match[1] || match[0];
+            try {
+              enrichedData = JSON.parse(jsonStr);
+              break;
+            } catch (e) {
+              parseError = e;
+              // 继续尝试下一个模式
+            }
+          }
+        }
+        
+        // 如果上面都失败，尝试更宽松的提取
+        if (!enrichedData) {
+          const startIdx = content.indexOf('[');
+          const endIdx = content.lastIndexOf(']');
+          if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+            const jsonStr = content.substring(startIdx, endIdx + 1);
+            try {
+              enrichedData = JSON.parse(jsonStr);
+            } catch (e) {
+              parseError = e;
+            }
+          }
+        }
+        
+        if (enrichedData && Array.isArray(enrichedData)) {
           // 将AI补全的信息合并到条目
           entries.forEach((entry, index) => {
             if (enrichedData[index]) {
@@ -3084,7 +3150,10 @@ ${wordsList}
           // 成功则跳出重试循环
           break;
         } else {
-          throw new Error('No JSON found in response');
+          // 打印完整响应以便调试
+          console.error('Failed to parse AI response. Full content:', content);
+          console.error('Parse error:', parseError);
+          throw new Error('No valid JSON array found in response');
         }
       } catch (error) {
         retries++;
