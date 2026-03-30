@@ -432,10 +432,10 @@ ${placeholderText}`;
       document.getElementById(`${mod.id}-bar`).style.width = `${progress}%`;
     }
     
-    // Update due count - show user's daily limit instead of actual due count
-    const settings = await this.getSettings();
-    const dailyLimit = settings.dailyLimit || 20;
-    document.getElementById('due-count').textContent = dailyLimit;
+    // Update due count - calculate actual total due entries across all modules
+    const allEntries = await db.entries.toArray();
+    const totalDue = allEntries.filter(e => new Date(e.nextReview) <= new Date()).length;
+    document.getElementById('due-count').textContent = totalDue;
     
     // Load recent activity
     await this.loadRecentActivity();
