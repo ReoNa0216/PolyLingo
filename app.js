@@ -45,6 +45,11 @@ const app = {
   
   // The Guardian 新闻获取状态（英语）
   guardianCurrentArticle: null,
+  
+  // 学习时长实时跟踪
+  studyStartTime: null,
+  studyTimer: null,
+  currentStudyMinutes: 0,
   fetchedGuardianFeeds: [], // 已获取的Guardian文章链接
   guardianCategory: 'world', // 默认栏目: world|uk|us|business|science|technology|culture
   
@@ -3976,6 +3981,9 @@ ${wordsList}
     document.getElementById('page-title').textContent = '复习模式';
     this.currentView = 'review';
     
+    // 开始计时
+    this.startStudyTimer();
+    
     this.showCurrentCard();
   },
   
@@ -4094,14 +4102,18 @@ ${wordsList}
   },
   
   finishReview() {
-    const duration = Math.ceil(this.reviewQueue.length * 0.5); // Estimate 30s per entry
-    this.recordActivity('review', duration);
-    alert(`恭喜完成 ${this.reviewQueue.length} 个学习条目的复习！`);
+    // 停止计时并获取实际学习时长
+    const duration = this.stopStudyTimer();
+    if (duration > 0) {
+      this.recordActivity('review', duration);
+    }
+    alert(`恭喜完成 ${this.reviewQueue.length} 个学习条目的复习！本次学习时长：${duration}分钟`);
     this.loadDashboard();
   },
   
   exitReview() {
     if (confirm('确定要退出复习吗？进度将不会保存。')) {
+      this.stopStudyTimer(); // 停止计时（不保存）
       this.loadDashboard();
     }
   },
@@ -4722,6 +4734,9 @@ Requirements:
     document.getElementById('page-title').textContent = '测试中';
     this.currentView = 'test';
     
+    // 开始计时
+    this.startStudyTimer();
+    
     const container = document.getElementById('test-container');
     container.innerHTML = `
       <div class="mb-4 flex items-center justify-between">
@@ -4852,6 +4867,9 @@ Requirements:
     const score = scorableCount > 0 ? Math.round((correct / scorableCount) * 100) : 0;
     this.testData.score = score;
     
+    // 停止计时并获取实际学习时长
+    const duration = this.stopStudyTimer();
+    
     // Save test record with full user answers
     await db.tests.put({
       id: `test_${Date.now()}`,
@@ -4860,9 +4878,14 @@ Requirements:
       answers: this.testData.answers,
       results: results,
       score: score,
-      duration: this.testData.questions.length * 2,
+      duration: duration > 0 ? duration : this.testData.questions.length * 2,
       createdAt: new Date()
     });
+    
+    // 记录学习时长
+    if (duration > 0) {
+      await this.recordActivity('test', duration);
+    }
     
     // Show result modal
     const translationCount = this.testData.questions.filter(q => q.type === 'translation').length;
@@ -4895,6 +4918,7 @@ Requirements:
   // 退出测试
   exitTest() {
     if (confirm('确定要退出测试吗？')) {
+      this.stopStudyTimer(); // 停止计时（不保存）
       this.loadDashboard();
     }
   },
@@ -5326,6 +5350,61 @@ Requirements:
   },
   
   // Utility Functions
+  
+  // 开始学习计时
+  startStudyTimer() {
+    this.studyStartTime = Date.now();
+    this.currentStudyMinutes = 0;
+    
+    // 清除之前的计时器
+    if (this.studyTimer) {
+      clearInterval(this.studyTimer);
+    }
+    
+    // 每分钟更新一次显示
+    this.studyTimer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - this.studyStartTime) / 60000);
+      if (elapsed > this.currentStudyMinutes) {
+        this.currentStudyMinutes = elapsed;
+        this.updateTodayMinutesDisplay();
+      }
+    }, 60000); // 每分钟检查一次
+    
+    console.log('开始学习计时');
+  },
+  
+  // 停止学习计时，返回学习时长（分钟）
+  stopStudyTimer() {
+    if (this.studyTimer) {
+      clearInterval(this.studyTimer);
+      this.studyTimer = null;
+    }
+    
+    let duration = 0;
+    if (this.studyStartTime) {
+      duration = Math.floor((Date.now() - this.studyStartTime) / 60000);
+      this.studyStartTime = null;
+    }
+    
+    console.log(`停止学习计时，时长: ${duration}分钟`);
+    return duration;
+  },
+  
+  // 实时更新今日学习时长显示
+  async updateTodayMinutesDisplay() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecords = await db.records.filter(r => 
+      new Date(r.createdAt).toISOString().split('T')[0] === today
+    ).toArray();
+    const recordedMinutes = todayRecords.reduce((sum, r) => sum + r.duration, 0);
+    const totalMinutes = recordedMinutes + this.currentStudyMinutes;
+    
+    const displayEl = document.getElementById('today-minutes');
+    if (displayEl) {
+      displayEl.textContent = `${totalMinutes}分钟`;
+    }
+  },
+  
   async recordActivity(action, duration) {
     await db.records.put({
       id: `record_${Date.now()}`,
