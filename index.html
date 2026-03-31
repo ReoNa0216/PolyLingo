@@ -399,6 +399,9 @@
               <button onclick="app.startReview()" class="px-6 py-3 bg-accent-500 hover:bg-accent-600 rounded-lg font-semibold transition-colors">
                 立即开始复习
               </button>
+              <button onclick="app.showQuickTestModal()" class="px-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-semibold transition-colors">
+                立即开始测试
+              </button>
             </div>
           </div>
           
@@ -1213,6 +1216,14 @@
           </svg>
         </button>
       </div>
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-primary-200">
+        <button onclick="app.toggleSelectAllTests()" class="text-sm text-primary-600 hover:text-primary-800 font-medium">
+          全选/取消全选
+        </button>
+        <button onclick="app.deleteSelectedTests()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors">
+          删除选中
+        </button>
+      </div>
       <div id="test-history-list" class="flex-1 overflow-y-auto space-y-3">
         <!-- Test history items will be rendered here -->
       </div>
@@ -1261,6 +1272,52 @@
         </button>
         <button onclick="app.startMixedReview()" class="flex-1 px-4 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-lg font-semibold transition-colors">
           开始复习
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Test Language Selection Modal -->
+  <div id="quick-test-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 animate-fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-2xl font-bold text-primary-800">选择测试语言</h3>
+        <button onclick="app.closeQuickTestModal()" class="text-primary-400 hover:text-primary-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <p class="text-primary-600 mb-4">请选择要测试的语言（多选）：</p>
+      <div id="quick-test-modules" class="space-y-3 mb-6">
+        <!-- Module checkboxes will be rendered here -->
+      </div>
+      <div class="border-t border-primary-200 pt-4 mb-4">
+        <p class="text-sm text-primary-600 mb-3">题型设置：</p>
+        <div class="space-y-2">
+          <label class="flex items-center">
+            <input type="checkbox" id="quick-test-choice" checked class="w-4 h-4 text-accent-500 rounded border-primary-300 focus:ring-accent-500 mr-2">
+            <span class="text-sm text-primary-700">选择题</span>
+            <input type="number" id="quick-test-choice-count" value="5" min="1" max="20" class="ml-2 w-16 px-2 py-1 text-sm border border-primary-300 rounded">
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" id="quick-test-fill" checked class="w-4 h-4 text-accent-500 rounded border-primary-300 focus:ring-accent-500 mr-2">
+            <span class="text-sm text-primary-700">填空题</span>
+            <input type="number" id="quick-test-fill-count" value="5" min="1" max="20" class="ml-2 w-16 px-2 py-1 text-sm border border-primary-300 rounded">
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" id="quick-test-translation" class="w-4 h-4 text-accent-500 rounded border-primary-300 focus:ring-accent-500 mr-2">
+            <span class="text-sm text-primary-700">翻译题</span>
+            <input type="number" id="quick-test-translation-count" value="5" min="1" max="20" class="ml-2 w-16 px-2 py-1 text-sm border border-primary-300 rounded">
+          </label>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="app.selectAllQuickTestModules()" class="flex-1 px-4 py-2 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg font-medium transition-colors">
+          全选
+        </button>
+        <button onclick="app.startQuickTest()" class="flex-1 px-4 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-lg font-semibold transition-colors">
+          开始测试
         </button>
       </div>
     </div>

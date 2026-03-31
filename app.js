@@ -4087,6 +4087,97 @@ ${wordsList}
     document.getElementById('mixed-review-modal').classList.add('hidden');
   },
   
+  // 显示快速测试语言选择弹窗
+  async showQuickTestModal() {
+    const modules = await db.modules.toArray();
+    const container = document.getElementById('quick-test-modules');
+    
+    container.innerHTML = modules.map(mod => `
+      <label class="flex items-center p-3 bg-primary-50 rounded-lg cursor-pointer hover:bg-primary-100 transition-colors">
+        <input type="checkbox" value="${mod.id}" class="quick-test-checkbox w-5 h-5 text-accent-500 rounded border-primary-300 focus:ring-accent-500 mr-3">
+        <div class="flex items-center">
+          <div class="font-semibold text-primary-800">${mod.name}</div>
+        </div>
+      </label>
+    `).join('');
+    
+    document.getElementById('quick-test-modal').classList.remove('hidden');
+  },
+  
+  // 关闭快速测试弹窗
+  closeQuickTestModal() {
+    document.getElementById('quick-test-modal').classList.add('hidden');
+  },
+  
+  // 全选快速测试语言
+  selectAllQuickTestModules() {
+    const checkboxes = document.querySelectorAll('.quick-test-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+  },
+  
+  // 开始快速测试
+  async startQuickTest() {
+    const checkboxes = document.querySelectorAll('.quick-test-checkbox:checked');
+    const selectedModules = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedModules.length === 0) {
+      alert('请至少选择一个语言！');
+      return;
+    }
+    
+    // 获取题型设置
+    const typeCounts = {};
+    let totalCount = 0;
+    
+    if (document.getElementById('quick-test-choice').checked) {
+      typeCounts.choice = parseInt(document.getElementById('quick-test-choice-count').value) || 0;
+      totalCount += typeCounts.choice;
+    }
+    if (document.getElementById('quick-test-fill').checked) {
+      typeCounts.fill = parseInt(document.getElementById('quick-test-fill-count').value) || 0;
+      totalCount += typeCounts.fill;
+    }
+    if (document.getElementById('quick-test-translation').checked) {
+      typeCounts.translation = parseInt(document.getElementById('quick-test-translation-count').value) || 0;
+      totalCount += typeCounts.translation;
+    }
+    
+    if (totalCount === 0) {
+      alert('请至少选择一种题型并设置数量');
+      return;
+    }
+    
+    this.closeQuickTestModal();
+    
+    // 获取所选模块的学习条目
+    const allEntries = await db.entries.toArray();
+    const entries = allEntries.filter(e => selectedModules.includes(e.moduleId));
+    
+    if (entries.length === 0) {
+      alert('选中的语言没有学习条目，请先上传材料并等待AI处理。');
+      return;
+    }
+    
+    // 从所有条目中随机抽取足够的条目用于生成题目
+    const entriesToUse = entries.length > totalCount * 3 
+      ? entries.sort(() => 0.5 - Math.random()).slice(0, totalCount * 3)
+      : entries;
+    console.log(`Quick test: selected ${entriesToUse.length} entries from ${entries.length} total for generating ${totalCount} questions`);
+    
+    // 生成测试题目
+    const questions = await this.generateQuestionsFromEntriesByType(entriesToUse, typeCounts);
+    
+    this.testData = {
+      moduleId: null, // 混合测试，不限制模块
+      questions: questions,
+      answers: {},
+      score: 0
+    };
+    
+    this.showTest();
+  },
+  
   // 全选所有模块
   selectAllModules() {
     const checkboxes = document.querySelectorAll('.mixed-review-checkbox');
@@ -5202,15 +5293,20 @@ Requirements:
       container.innerHTML = '<p class="text-center text-primary-500 py-8">暂无测试记录</p>';
     } else {
       container.innerHTML = tests.map(t => `
-        <div class="p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors cursor-pointer" onclick="app.showTestReview('${t.id}')">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="font-medium">${(this.modules[t.moduleId] && this.modules[t.moduleId].name) || '未知模块'}</div>
-              <div class="text-sm text-primary-500">${new Date(t.createdAt).toLocaleString()}</div>
-            </div>
-            <div class="text-right">
-              <div class="text-2xl font-bold ${t.score >= 80 ? 'text-green-600' : t.score >= 60 ? 'text-yellow-600' : 'text-red-600'}">${t.score}%</div>
-              <div class="text-xs text-primary-500">${t.questions ? t.questions.length : 0} 题</div>
+        <div class="p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">
+          <div class="flex items-center gap-3">
+            <input type="checkbox" value="${t.id}" class="test-history-checkbox w-5 h-5 text-accent-500 rounded border-primary-300 focus:ring-accent-500 cursor-pointer">
+            <div class="flex-1 cursor-pointer" onclick="app.showTestReview('${t.id}')">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium">${(this.modules[t.moduleId] && this.modules[t.moduleId].name) || '未知模块'}</div>
+                  <div class="text-sm text-primary-500">${new Date(t.createdAt).toLocaleString()}</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-bold ${t.score >= 80 ? 'text-green-600' : t.score >= 60 ? 'text-yellow-600' : 'text-red-600'}">${t.score}%</div>
+                  <div class="text-xs text-primary-500">${t.questions ? t.questions.length : 0} 题</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -5218,6 +5314,37 @@ Requirements:
     }
     
     document.getElementById('test-history-modal').classList.remove('hidden');
+  },
+  
+  // 全选/取消全选测试记录
+  toggleSelectAllTests() {
+    const checkboxes = document.querySelectorAll('.test-history-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+  },
+  
+  // 删除选中的测试记录
+  async deleteSelectedTests() {
+    const checkboxes = document.querySelectorAll('.test-history-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (selectedIds.length === 0) {
+      alert('请先选择要删除的测试记录');
+      return;
+    }
+    
+    if (!confirm(`确定要删除选中的 ${selectedIds.length} 条测试记录吗？`)) {
+      return;
+    }
+    
+    try {
+      await db.tests.bulkDelete(selectedIds);
+      await this.showTestHistory();
+      alert('删除成功');
+    } catch (error) {
+      console.error('删除失败:', error);
+      alert('删除失败: ' + error.message);
+    }
   },
   
   closeTestHistory() {
