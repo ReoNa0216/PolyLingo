@@ -4073,12 +4073,8 @@ ${wordsList}
     container.innerHTML = modules.map(mod => `
       <label class="flex items-center p-3 bg-primary-50 rounded-lg cursor-pointer hover:bg-primary-100 transition-colors">
         <input type="checkbox" value="${mod.id}" class="mixed-review-checkbox w-5 h-5 text-accent-500 rounded border-primary-300 focus:ring-accent-500 mr-3">
-        <div class="flex items-center gap-2">
-          <span class="text-2xl">${mod.flag || '📜'}</span>
-          <div>
-            <div class="font-semibold text-primary-800">${mod.name}</div>
-            <div class="text-sm text-primary-500">${mod.language}</div>
-          </div>
+        <div class="flex items-center">
+          <div class="font-semibold text-primary-800">${mod.name}</div>
         </div>
       </label>
     `).join('');
