@@ -4866,20 +4866,24 @@ ${typePrompts[type]}
           return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         });
         
-        // 修复字符串值中的未转义引号（如中文引号 "内容"）
-        // 将字符串内部的 " 转义为 \\"
-        fixedStr = fixedStr.replace(/"([^"]*)"([^"]*)"/g, (match, p1, p2) => {
-          // 如果中间的部分包含字母/中文，说明是字符串内的引号
-          if (p2 && /[a-zA-Z\u4e00-\u9fa5]/.test(p2.substring(0, 1))) {
-            return '"' + p1 + '\\"' + p2 + '"';
-          }
-          return match;
+        // 修复所有字符串值中的未转义引号
+        // 逐个处理每个字段，将字符串内部的 " 转义
+        fixedStr = fixedStr.replace(/"type": "([^"]+)"/g, '"type": "$1"');
+        fixedStr = fixedStr.replace(/"question": "(.*?)"(?=,\s*"options"|,"options")/gs, (match, content) => {
+          // 转义内容中的引号
+          const escaped = content.replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+          return '"question": "' + escaped + '"';
+        });
+        fixedStr = fixedStr.replace(/"explanation": "(.*?)"(?=\s*[,}\]])/gs, (match, content) => {
+          // 转义内容中的引号
+          const escaped = content.replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+          return '"explanation": "' + escaped + '"';
         });
         
         const questions = JSON.parse(fixedStr);
         return questions.map(q => ({ ...q, type }));
       } catch (fixError) {
-        console.error('JSON content:', jsonStr.substring(0, 400));
+        console.error('JSON content:', jsonStr.substring(0, 500));
         throw new Error(`JSON parse error: ${parseError.message}. Please check API response format.`);
       }
     }
