@@ -4842,13 +4842,7 @@ ${typePrompts[type]}
     // 清理markdown
     content_text = content_text.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
     
-    // 修复常见JSON格式问题（日语/韩语特殊字符）
-    content_text = content_text
-      .replace(/\n/g, '\\n')  // 将换行转义为\n
-      .replace(/\r/g, '\\r')
-      .replace(/\t/g, '\\t');
-    
-    // 提取JSON
+    // 提取JSON数组
     const jsonMatch = content_text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('Invalid response format: no JSON array found');
@@ -4856,19 +4850,24 @@ ${typePrompts[type]}
     
     let jsonStr = jsonMatch[0];
     
-    // 尝试解析JSON，如果失败尝试修复常见问题
+    // 尝试解析JSON
     try {
       const questions = JSON.parse(jsonStr);
-      // 确保每题都有正确的type
       return questions.map(q => ({ ...q, type }));
     } catch (parseError) {
-      // 尝试修复未转义的引号
+      console.warn('JSON parse failed, trying to fix...', parseError.message);
+      
+      // 尝试修复常见问题：日语/韩语中的可能有未转义的换行或引号
       try {
-        jsonStr = jsonStr.replace(/([^\\])"/g, '$1\\"').replace(/^"/, '\\"');
-        const questions = JSON.parse(jsonStr);
+        // 修复字符串值中的未转义换行
+        let fixedStr = jsonStr.replace(/: "([^"]*)\n([^"]*)"/g, ': "$1\\n$2"');
+        fixedStr = fixedStr.replace(/: "([^"]*)\r([^"]*)"/g, ': "$1\\r$2"');
+        
+        const questions = JSON.parse(fixedStr);
         return questions.map(q => ({ ...q, type }));
-      } catch {
-        throw new Error(`JSON parse error: ${parseError.message}`);
+      } catch (fixError) {
+        console.error('JSON content:', jsonStr.substring(0, 200));
+        throw new Error(`JSON parse error: ${parseError.message}. Please check API response format.`);
       }
     }
   },
