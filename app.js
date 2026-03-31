@@ -4552,55 +4552,63 @@ ${wordsList}
     
     // 按语言分组条目
     const entriesByModule = {};
+    const moduleInfo = {}; // 存储每个模块的信息
     entries.forEach(e => {
-      if (!entriesByModule[e.moduleId]) entriesByModule[e.moduleId] = [];
+      if (!entriesByModule[e.moduleId]) {
+        entriesByModule[e.moduleId] = [];
+        // 获取模块信息
+        const mod = this.modules[e.moduleId];
+        moduleInfo[e.moduleId] = mod?.name || '外';
+      }
       entriesByModule[e.moduleId].push(e);
     });
     const moduleIds = Object.keys(entriesByModule);
     
-    // 按语言平均分配的条目抽取函数
-    const getBalancedEntries = (count) => {
-      const result = [];
-      const perModule = Math.ceil(count / moduleIds.length);
-      
-      moduleIds.forEach(moduleId => {
+    // 生成选择题 - 按语言平均分配
+    if (typeCounts.choice > 0) {
+      const perModule = Math.ceil(typeCounts.choice / moduleIds.length);
+      for (const moduleId of moduleIds) {
         const moduleEntries = entriesByModule[moduleId];
         const shuffled = moduleEntries.sort(() => 0.5 - Math.random());
-        result.push(...shuffled.slice(0, perModule * 2));
-      });
-      
-      return result.sort(() => 0.5 - Math.random()).slice(0, count * 2);
-    };
-    
-    // 生成选择题
-    if (typeCounts.choice > 0) {
-      const choiceEntries = getBalancedEntries(typeCounts.choice);
-      const choiceQuestions = await this.generateQuestionsOfType(
-        choiceEntries, typeCounts.choice, 'choice', settings, 0
-      );
-      allQuestions.push(...choiceQuestions);
+        const selected = shuffled.slice(0, Math.min(perModule * 2, shuffled.length));
+        const questions = await this.generateQuestionsOfTypeForModule(
+          selected, Math.min(perModule, selected.length), 'choice', settings, moduleInfo[moduleId]
+        );
+        allQuestions.push(...questions);
+      }
     }
     
-    // 生成填空题（使用新的平衡条目）
+    // 生成填空题 - 按语言平均分配
     if (typeCounts.fill > 0) {
-      const fillEntries = getBalancedEntries(typeCounts.fill);
-      const fillQuestions = await this.generateQuestionsOfType(
-        fillEntries, typeCounts.fill, 'fill', settings, 0
-      );
-      allQuestions.push(...fillQuestions);
+      const perModule = Math.ceil(typeCounts.fill / moduleIds.length);
+      for (const moduleId of moduleIds) {
+        const moduleEntries = entriesByModule[moduleId];
+        const shuffled = moduleEntries.sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, Math.min(perModule * 2, shuffled.length));
+        const questions = await this.generateQuestionsOfTypeForModule(
+          selected, Math.min(perModule, selected.length), 'fill', settings, moduleInfo[moduleId]
+        );
+        allQuestions.push(...questions);
+      }
     }
     
-    // 生成翻译题（使用新的平衡条目）
+    // 生成翻译题 - 按语言平均分配
     if (typeCounts.translation > 0) {
-      const translationEntries = getBalancedEntries(typeCounts.translation);
-      const translationQuestions = await this.generateQuestionsOfType(
-        translationEntries, typeCounts.translation, 'translation', settings, 0
-      );
-      allQuestions.push(...translationQuestions);
+      const perModule = Math.ceil(typeCounts.translation / moduleIds.length);
+      for (const moduleId of moduleIds) {
+        const moduleEntries = entriesByModule[moduleId];
+        const shuffled = moduleEntries.sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, Math.min(perModule * 2, shuffled.length));
+        const questions = await this.generateQuestionsOfTypeForModule(
+          selected, Math.min(perModule, selected.length), 'translation', settings, moduleInfo[moduleId]
+        );
+        allQuestions.push(...questions);
+      }
     }
     
-    // 打乱题目顺序
-    return allQuestions.sort(() => 0.5 - Math.random());
+    // 打乱题目顺序，只返回所需数量
+    const totalNeeded = (typeCounts.choice || 0) + (typeCounts.fill || 0) + (typeCounts.translation || 0);
+    return allQuestions.sort(() => 0.5 - Math.random()).slice(0, totalNeeded);
   },
   
   async generateQuestionsOfType(entries, count, type, settings, startIndex) {
@@ -4614,6 +4622,22 @@ ${wordsList}
       return await this.callAIForTestByType(selectedEntries, count, type, settings);
     } catch (error) {
       console.warn(`AI generation failed for ${type}:`, error);
+      throw error;
+    }
+  },
+  
+  // 为指定模块生成题目（混合测试用）
+  async generateQuestionsOfTypeForModule(entries, count, type, settings, moduleName) {
+    const selectedEntries = entries.slice(0, Math.min(count * 2, entries.length));
+    
+    if (!settings.apiKey) {
+      throw new Error('未配置API Key，请先在设置中配置OpenAI/GLM API');
+    }
+    
+    try {
+      return await this.callAIForTestByType(selectedEntries, count, type, settings, moduleName);
+    } catch (error) {
+      console.warn(`AI generation failed for ${type} in ${moduleName}:`, error);
       throw error;
     }
   },
@@ -4732,10 +4756,9 @@ ${wordsList}
   },
   
   // 按类型生成测试题（使用AI）
-  async callAIForTestByType(entries, count, type, settings) {
-    const mod = this.modules[this.currentModule];
-    // 混合测试时，mod 可能为 undefined，使用通用语言名称
-    const languageName = mod?.name || '外';
+  async callAIForTestByType(entries, count, type, settings, moduleName = null) {
+    // 如果提供了模块名称直接使用，否则从当前模块获取
+    const languageName = moduleName || this.modules[this.currentModule]?.name || '外';
     
     const typeNames = {
       choice: '选择题（四选一）',
