@@ -4797,7 +4797,7 @@ ${wordsList}
         .trim();
     };
     
-    const prompt = `基于以下${mod.name}学习条目，生成${typeNames[type]}。
+    const prompt = `基于以下${languageName}语学习条目，生成${typeNames[type]}。
 
 重要：条目中的"例句"可以用于生成题目，特别是填空题和翻译题。
 注意：例句中可能包含中文翻译（如：Hello（你好）），生成题目时请去除中文部分。
