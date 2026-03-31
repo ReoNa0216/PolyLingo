@@ -4550,33 +4550,49 @@ ${wordsList}
     const settings = await this.getSettings();
     const allQuestions = [];
     
-    // 每次从条目中随机抽取（确保各类题型都能用到不同的条目）
-    const getRandomEntries = (count) => {
-      const shuffled = entries.sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, Math.min(count * 2, shuffled.length));
+    // 按语言分组条目
+    const entriesByModule = {};
+    entries.forEach(e => {
+      if (!entriesByModule[e.moduleId]) entriesByModule[e.moduleId] = [];
+      entriesByModule[e.moduleId].push(e);
+    });
+    const moduleIds = Object.keys(entriesByModule);
+    
+    // 按语言平均分配的条目抽取函数
+    const getBalancedEntries = (count) => {
+      const result = [];
+      const perModule = Math.ceil(count / moduleIds.length);
+      
+      moduleIds.forEach(moduleId => {
+        const moduleEntries = entriesByModule[moduleId];
+        const shuffled = moduleEntries.sort(() => 0.5 - Math.random());
+        result.push(...shuffled.slice(0, perModule * 2));
+      });
+      
+      return result.sort(() => 0.5 - Math.random()).slice(0, count * 2);
     };
     
     // 生成选择题
     if (typeCounts.choice > 0) {
-      const choiceEntries = getRandomEntries(typeCounts.choice);
+      const choiceEntries = getBalancedEntries(typeCounts.choice);
       const choiceQuestions = await this.generateQuestionsOfType(
         choiceEntries, typeCounts.choice, 'choice', settings, 0
       );
       allQuestions.push(...choiceQuestions);
     }
     
-    // 生成填空题（使用新的随机条目）
+    // 生成填空题（使用新的平衡条目）
     if (typeCounts.fill > 0) {
-      const fillEntries = getRandomEntries(typeCounts.fill);
+      const fillEntries = getBalancedEntries(typeCounts.fill);
       const fillQuestions = await this.generateQuestionsOfType(
         fillEntries, typeCounts.fill, 'fill', settings, 0
       );
       allQuestions.push(...fillQuestions);
     }
     
-    // 生成翻译题（使用新的随机条目）
+    // 生成翻译题（使用新的平衡条目）
     if (typeCounts.translation > 0) {
-      const translationEntries = getRandomEntries(typeCounts.translation);
+      const translationEntries = getBalancedEntries(typeCounts.translation);
       const translationQuestions = await this.generateQuestionsOfType(
         translationEntries, typeCounts.translation, 'translation', settings, 0
       );
@@ -4811,15 +4827,23 @@ ${selectedEntries.map((e, i) => `${i+1}. ${e.original} - ${e.translation}`).join
 - 正确答案是条目的原文或例句`
     };
     
+    // 移除中文翻译的辅助函数
+    const removeChineseTranslation = (text) => {
+      if (!text) return text;
+      // 移除括号及其中的中文内容（包括中文标点）
+      return text.replace(/\uff08[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]+?\uff09/g, '').trim();
+    };
+    
     const prompt = `基于以下${mod.name}学习条目，生成${typeNames[type]}。
 
 重要：条目中的"例句"可以用于生成题目，特别是填空题和翻译题。
+注意：例句中可能包含中文翻译（如：Hello（你好）），生成题目时请去除中文部分。
 
 学习条目：
 ${entries.map((e, i) => {
   let text = `${i+1}. ${e.original} - ${e.translation}`;
   if (e.explanation) text += `\n   解释: ${e.explanation}`;
-  if (e.example) text += `\n   例句: ${e.example}`;
+  if (e.example) text += `\n   例句: ${removeChineseTranslation(e.example)}`;
   return text;
 }).join('\n\n')}
 
