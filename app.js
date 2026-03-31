@@ -4864,28 +4864,34 @@ ${typePrompts[type]}
       try {
         let fixedStr = jsonStr;
         
-        // 修复字符串值中的换行符
-        fixedStr = fixedStr.replace(/"([^"\n]*\n[^"]*)"/g, (match) => {
+        // 方法1: 先尝试修复明显的问题 - 将所有真实换行转义为 \n
+        // 这会处理字符串值内部的换行
+        fixedStr = fixedStr.replace(/"([^"]*\n[^"]*)"/gs, (match) => {
           return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         });
         
-        // 修复所有 JSON 字符串值中的未转义引号
-        // 逐个匹配 "key": "value" 模式，转义 value 中的引号
-        fixedStr = fixedStr.replace(/"([^"]+)":\s*"([^"]*)"/g, (match, key, value) => {
-          // 转义值中的引号和换行
-          const escapedValue = value
-            .replace(/\\/g, '\\\\')  // 先转义反斜杠
-            .replace(/"/g, '\\"')      // 转义引号
-            .replace(/\n/g, '\\n')      // 转义换行
-            .replace(/\r/g, '\\r')      // 转义回车
-            .replace(/\t/g, '\\t');     // 转义制表符
-          return '"' + key + '": "' + escapedValue + '"';
+        // 方法2: 修复字符串值中的未转义引号（非开头/结尾的引号）
+        // 逐个处理每个字段
+        const fields = ['question', 'explanation', 'options', 'answer'];
+        fields.forEach(field => {
+          // 匹配该字段的内容
+          const fieldRegex = new RegExp(`"${field}": "([\\s\\S]*?)"(?=,|\\}|\\]|$)`, 'gs');
+          fixedStr = fixedStr.replace(fieldRegex, (match, content) => {
+            // 转义内容中的引号（确保只转义内容中的，而不是字段边界的）
+            let escaped = content
+              .replace(/\\/g, '\\\\')     // 先转义反斜杠
+              .replace(/"/g, '\\"')        // 转义引号
+              .replace(/\n/g, '\\n')        // 转义换行
+              .replace(/\r/g, '\\r')        // 转义回车
+              .replace(/\t/g, '\\t');       // 转义制表符
+            return `"${field}": "${escaped}"`;
+          });
         });
         
         const questions = JSON.parse(fixedStr);
         return questions.map(q => ({ ...q, type }));
       } catch (fixError) {
-        console.error('JSON content:', jsonStr.substring(0, 500));
+        console.error('JSON content:', jsonStr.substring(0, 600));
         throw new Error(`JSON parse error: ${parseError.message}. Please check API response format.`);
       }
     }
