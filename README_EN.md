@@ -24,7 +24,6 @@
 - **Custom Language Support**: Not only supports default languages like German, Japanese, and English, but also allows adding any language you want to learn
 - **Smart Prompt Configuration**: Customize AI extraction requirements for each language (such as part-of-speech tagging, grammar explanations, usage scenarios, etc.)
 - **Batch Import**: Upload text files in TXT, Markdown, and other formats; AI automatically extracts learning entries
-- **Article Processing**: Paste articles directly; AI will identify and extract key vocabulary and expressions
 
 ### 2. 📚 Learning Entry Management
 - **Three Entry Types**: Word, Phrase, and Sentence
