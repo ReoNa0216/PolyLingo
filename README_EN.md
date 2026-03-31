@@ -223,7 +223,9 @@ You can use placeholders in Prompts, such as `{{word}}`, `{{translation}}`, `{{e
 
 ### Backend Proxy Deployment (Optional, only for news fetching)
 
-If you need to use the news fetching feature (to get news from ZDF, BBC, Asahi Shimbun, etc.), you need to deploy the backend proxy service:
+**If you don't use the news fetching feature** (only upload your own materials), **you don't need to deploy the backend**, skip this section.
+
+**If you need to use the news fetching feature** (to get news from ZDF, BBC, Asahi Shimbun, etc.), you need to deploy your own backend proxy service:
 
 ```bash
 cd backend
@@ -232,9 +234,16 @@ vercel login
 vercel
 ```
 
-After deployment, Vercel will give you a URL (e.g., `https://your-project.vercel.app`). Enter this URL into the **Proxy Service URL** field in the frontend settings.
+After deployment, Vercel will give you a URL (e.g., `https://your-project.vercel.app`).
 
-**Note**: If you don't use the news fetching feature (only upload your own materials), you don't need to deploy the backend.
+**Where to configure?**
+1. Open the PolyLingo app
+2. Click the **Settings** button (gear icon) in the bottom right corner
+3. Find the **Proxy Service URL** field
+4. Enter your Vercel URL (e.g., `https://your-project.vercel.app`)
+5. Click Save
+
+**Technical note**: This backend proxy is only used to solve browser cross-origin (CORS) restrictions, allowing the frontend to request content from news websites. PDF/Word processing and all data storage are done locally and do not go through this proxy.
 
 ---
 
