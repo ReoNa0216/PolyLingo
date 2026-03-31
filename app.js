@@ -4789,20 +4789,44 @@ ${typePrompts[type]}
     const getDistractors = (correctEntry, count = 3) => {
       const others = shuffled.filter(e => e.id !== correctEntry.id && e.translation !== correctEntry.translation);
       const selected = others.slice(0, count);
-      return selected.map(e => e.translation);
+      const translations = selected.map(e => e.translation);
+      
+      // 如果翻译不足，使用 original 作为反向干扰
+      if (translations.length < count) {
+        const originals = others
+          .filter(e => !translations.includes(e.translation))
+          .slice(0, count - translations.length)
+          .map(e => e.original);
+        translations.push(...originals);
+      }
+      
+      // 如果还不足，创建合理的假词
+      const fakeDistractors = [
+        '相似词汇', '近义表达', '相关概念'
+      ];
+      while (translations.length < count) {
+        translations.push(fakeDistractors[translations.length % fakeDistractors.length]);
+      }
+      
+      return translations.slice(0, count);
+    };
+    
+    // 移除中文翻译的辅助函数
+    const removeChineseTranslation = (text) => {
+      if (!text) return text;
+      // 移除括号及其中的中文内容（包括中文标点）
+      return text.replace(/（[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]+?）/g, '').trim();
     };
     
     for (let i = 0; i < Math.min(count, shuffled.length); i++) {
       const entry = shuffled[i];
-      // 优先使用例句作为题目材料
-      const sourceText = entry.example || entry.original;
+      // 移除例句中的中文翻译
+      const cleanExample = removeChineseTranslation(entry.example);
+      const sourceText = cleanExample || entry.original;
       
       if (type === 'choice') {
         // 获取3个干扰选项
         const distractors = getDistractors(entry, 3);
-        while (distractors.length < 3) {
-          distractors.push(`[其他含义 ${distractors.length + 1}]`);
-        }
         // 打乱选项顺序
         const options = [
           { label: 'A', text: entry.translation, correct: true },
@@ -4813,8 +4837,8 @@ ${typePrompts[type]}
         options.forEach((opt, idx) => { opt.label = String.fromCharCode(65 + idx); });
         const correctOption = options.find(o => o.correct);
         
-        const questionText = entry.example 
-          ? `例句: "${entry.example}"\n\n"${entry.original}" 的意思是什么？`
+        const questionText = cleanExample 
+          ? `例句: "${cleanExample}"\n\n"${entry.original}" 的意思是什么？`
           : `"${entry.original}" 的中文意思是什么？`;
         questions.push({
           type: 'choice',
@@ -4825,13 +4849,13 @@ ${typePrompts[type]}
         });
       } else if (type === 'fill') {
         // 填空题：优先从例句中抽取关键词
-        const textToUse = entry.example || entry.original;
+        const textToUse = cleanExample || entry.original;
         const keyword = entry.original.split(/\s+/)[0];
         let maskedQuestion = textToUse;
         
         // 尝试在例句中替换关键词
-        if (entry.example && entry.example.includes(keyword)) {
-          maskedQuestion = entry.example.replace(keyword, '_____');
+        if (cleanExample && cleanExample.includes(keyword)) {
+          maskedQuestion = cleanExample.replace(keyword, '_____');
         } else {
           const words = entry.original.split(/\s+/);
           const targetWord = words.find(w => w.length > 2) || words[0] || '';
