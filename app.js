@@ -4734,6 +4734,8 @@ ${wordsList}
   // 按类型生成测试题（使用AI）
   async callAIForTestByType(entries, count, type, settings) {
     const mod = this.modules[this.currentModule];
+    // 混合测试时，mod 可能为 undefined，使用通用语言名称
+    const languageName = mod?.name || '外';
     
     const typeNames = {
       choice: '选择题（四选一）',
@@ -4774,8 +4776,8 @@ ${wordsList}
 - 示例："在下列日语句子中填入空缺的词语：警備員が入り口を_____ています。 (把守)"
 - 正确答案是该外语词/短语本身`,
       translation: `生成${count}道翻译题。要求：
-- 给出中文句子，让学生翻译成${mod.name}语
-- 题目格式："将下列句子翻译成${mod.name}语：'中文句子'"
+- 给出中文句子，让学生翻译成${languageName}语
+- 题目格式："将下列句子翻译成${languageName}语：'中文句子'"
 - 正确答案是条目的原文或例句`
     };
     
