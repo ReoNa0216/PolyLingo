@@ -4021,73 +4021,135 @@ ${wordsList}
   
   // SRS Review System
   async startReview() {
-    let allEntries = [];
-    
-    if (this.currentModule) {
-      // 获取特定模块待复习的条目
-      allEntries = await db.entries.filter(e => 
-        e.moduleId === this.currentModule && 
-        new Date(e.nextReview) <= new Date()
-      ).toArray();
-    } else {
-      // 获取所有待复习的条目
-      allEntries = await db.entries.filter(e => new Date(e.nextReview) <= new Date()).toArray();
+    // 如果没有选择模块，显示语言选择弹窗
+    if (!this.currentModule) {
+      await this.showMixedReviewModal();
+      return;
     }
+    
+    // 单个模块复习
+    await this.startSingleModuleReview(this.currentModule);
+  },
+  
+  // 单个模块复习
+  async startSingleModuleReview(moduleId) {
+    const allEntries = await db.entries.filter(e => 
+      e.moduleId === moduleId && 
+      new Date(e.nextReview) <= new Date()
+    ).toArray();
     
     // 获取每日复习限制
     const settings = await db.settings.get('dailyLimit');
     const totalLimit = (settings && settings.value) || 20;
     
-    if (this.currentModule) {
-      // 单个模块复习：按类型分配（单词70%，短语20%，语句10%）
-      const words = allEntries.filter(e => e.type === 'word');
-      const phrases = allEntries.filter(e => e.type === 'phrase');
-      const sentences = allEntries.filter(e => e.type === 'sentence');
+    // 按类型分配（单词70%，短语20%，语句10%）
+    const words = allEntries.filter(e => e.type === 'word');
+    const phrases = allEntries.filter(e => e.type === 'phrase');
+    const sentences = allEntries.filter(e => e.type === 'sentence');
+    
+    const wordLimit = Math.floor(totalLimit * 0.7);
+    const phraseLimit = Math.floor(totalLimit * 0.2);
+    const sentenceLimit = totalLimit - wordLimit - phraseLimit;
+    
+    const shuffle = arr => arr.sort(() => 0.5 - Math.random());
+    const selectedWords = shuffle([...words]).slice(0, wordLimit);
+    const selectedPhrases = shuffle([...phrases]).slice(0, phraseLimit);
+    const selectedSentences = shuffle([...sentences]).slice(0, sentenceLimit);
+    
+    this.reviewQueue = shuffle([
+      ...selectedWords,
+      ...selectedPhrases,
+      ...selectedSentences
+    ]);
+    
+    await this.beginReviewSession();
+  },
+  
+  // 显示混合复习语言选择弹窗
+  async showMixedReviewModal() {
+    const modules = await db.modules.toArray();
+    const container = document.getElementById('mixed-review-modules');
+    
+    container.innerHTML = modules.map(mod => `
+      <label class="flex items-center p-3 bg-primary-50 rounded-lg cursor-pointer hover:bg-primary-100 transition-colors">
+        <input type="checkbox" value="${mod.id}" class="mixed-review-checkbox w-5 h-5 text-accent-500 rounded border-primary-300 focus:ring-accent-500 mr-3">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">${mod.flag || '📜'}</span>
+          <div>
+            <div class="font-semibold text-primary-800">${mod.name}</div>
+            <div class="text-sm text-primary-500">${mod.language}</div>
+          </div>
+        </div>
+      </label>
+    `).join('');
+    
+    document.getElementById('mixed-review-modal').classList.remove('hidden');
+  },
+  
+  // 关闭混合复习弹窗
+  closeMixedReviewModal() {
+    document.getElementById('mixed-review-modal').classList.add('hidden');
+  },
+  
+  // 全选所有模块
+  selectAllModules() {
+    const checkboxes = document.querySelectorAll('.mixed-review-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+  },
+  
+  // 开始混合复习
+  async startMixedReview() {
+    const checkboxes = document.querySelectorAll('.mixed-review-checkbox:checked');
+    const selectedModules = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedModules.length === 0) {
+      alert('请至少选择一个语言！');
+      return;
+    }
+    
+    this.closeMixedReviewModal();
+    
+    // 获取所选模块待复习的条目
+    const allEntries = await db.entries.filter(e => 
+      selectedModules.includes(e.moduleId) && 
+      new Date(e.nextReview) <= new Date()
+    ).toArray();
+    
+    // 获取每日复习限制
+    const settings = await db.settings.get('dailyLimit');
+    const totalLimit = (settings && settings.value) || 20;
+    const perModuleLimit = Math.floor(totalLimit / selectedModules.length);
+    
+    const shuffle = arr => arr.sort(() => 0.5 - Math.random());
+    let selectedEntries = [];
+    
+    selectedModules.forEach(moduleId => {
+      const moduleEntries = allEntries.filter(e => e.moduleId === moduleId);
+      const words = moduleEntries.filter(e => e.type === 'word');
+      const phrases = moduleEntries.filter(e => e.type === 'phrase');
+      const sentences = moduleEntries.filter(e => e.type === 'sentence');
       
-      const wordLimit = Math.floor(totalLimit * 0.7);
-      const phraseLimit = Math.floor(totalLimit * 0.2);
-      const sentenceLimit = totalLimit - wordLimit - phraseLimit;
+      // 每个语言内部按类型分配
+      const wordLimit = Math.floor(perModuleLimit * 0.7);
+      const phraseLimit = Math.floor(perModuleLimit * 0.2);
+      const sentenceLimit = perModuleLimit - wordLimit - phraseLimit;
       
-      const shuffle = arr => arr.sort(() => 0.5 - Math.random());
       const selectedWords = shuffle([...words]).slice(0, wordLimit);
       const selectedPhrases = shuffle([...phrases]).slice(0, phraseLimit);
       const selectedSentences = shuffle([...sentences]).slice(0, sentenceLimit);
       
-      this.reviewQueue = shuffle([
-        ...selectedWords,
-        ...selectedPhrases,
-        ...selectedSentences
-      ]);
-    } else {
-      // 混合复习：按语言平均分配
-      const modules = ['german', 'japanese', 'english'];
-      const perModuleLimit = Math.floor(totalLimit / modules.length);
-      
-      const shuffle = arr => arr.sort(() => 0.5 - Math.random());
-      let selectedEntries = [];
-      
-      modules.forEach(moduleId => {
-        const moduleEntries = allEntries.filter(e => e.moduleId === moduleId);
-        const words = moduleEntries.filter(e => e.type === 'word');
-        const phrases = moduleEntries.filter(e => e.type === 'phrase');
-        const sentences = moduleEntries.filter(e => e.type === 'sentence');
-        
-        // 每个语誊内部也按类型分配
-        const wordLimit = Math.floor(perModuleLimit * 0.7);
-        const phraseLimit = Math.floor(perModuleLimit * 0.2);
-        const sentenceLimit = perModuleLimit - wordLimit - phraseLimit;
-        
-        const selectedWords = shuffle([...words]).slice(0, wordLimit);
-        const selectedPhrases = shuffle([...phrases]).slice(0, phraseLimit);
-        const selectedSentences = shuffle([...sentences]).slice(0, sentenceLimit);
-        
-        selectedEntries.push(...selectedWords, ...selectedPhrases, ...selectedSentences);
-      });
-      
-      // 打乱顺序
-      this.reviewQueue = shuffle(selectedEntries).slice(0, totalLimit);
-    }
+      selectedEntries.push(...selectedWords, ...selectedPhrases, ...selectedSentences);
+    });
     
+    // 打乱顺序
+    this.reviewQueue = shuffle(selectedEntries).slice(0, totalLimit);
+    
+    await this.beginReviewSession();
+  },
+  
+  // 开始复习会话
+  async beginReviewSession() {
     this.currentReviewIndex = 0;
     
     console.log(`Review queue: ${this.reviewQueue.length} entries`);

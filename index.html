@@ -1224,6 +1224,32 @@
     </div>
   </div>
 
+  <!-- Mixed Review Language Selection Modal -->
+  <div id="mixed-review-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 animate-fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-2xl font-bold text-primary-800">选择复习语言</h3>
+        <button onclick="app.closeMixedReviewModal()" class="text-primary-400 hover:text-primary-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <p class="text-primary-600 mb-4">请选择今天要复习的语言（多选）：</p>
+      <div id="mixed-review-modules" class="space-y-3 mb-6">
+        <!-- Module checkboxes will be rendered here -->
+      </div>
+      <div class="flex gap-3">
+        <button onclick="app.selectAllModules()" class="flex-1 px-4 py-2 bg-primary-100 hover:bg-primary-200 text-primary-700 rounded-lg font-medium transition-colors">
+          全选
+        </button>
+        <button onclick="app.startMixedReview()" class="flex-1 px-4 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-lg font-semibold transition-colors">
+          开始复习
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // 清理可能的重复渲染问题（针对 Edge 浏览器）
     (function() {
