@@ -4842,14 +4842,35 @@ ${typePrompts[type]}
     // 清理markdown
     content_text = content_text.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
     
+    // 修复常见JSON格式问题（日语/韩语特殊字符）
+    content_text = content_text
+      .replace(/\n/g, '\\n')  // 将换行转义为\n
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+    
     // 提取JSON
     const jsonMatch = content_text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const questions = JSON.parse(jsonMatch[0]);
+    if (!jsonMatch) {
+      throw new Error('Invalid response format: no JSON array found');
+    }
+    
+    let jsonStr = jsonMatch[0];
+    
+    // 尝试解析JSON，如果失败尝试修复常见问题
+    try {
+      const questions = JSON.parse(jsonStr);
       // 确保每题都有正确的type
       return questions.map(q => ({ ...q, type }));
+    } catch (parseError) {
+      // 尝试修复未转义的引号
+      try {
+        jsonStr = jsonStr.replace(/([^\\])"/g, '$1\\"').replace(/^"/, '\\"');
+        const questions = JSON.parse(jsonStr);
+        return questions.map(q => ({ ...q, type }));
+      } catch {
+        throw new Error(`JSON parse error: ${parseError.message}`);
+      }
     }
-    throw new Error('Invalid response format');
   },
   
   // 按类型生成测试题（无API时的回退方案）- 优先使用例句
