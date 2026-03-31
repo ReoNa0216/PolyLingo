@@ -4552,16 +4552,26 @@ ${wordsList}
     
     // 按语言分组条目
     const entriesByModule = {};
-    const moduleInfo = {}; // 存储每个模块的信息
     entries.forEach(e => {
       if (!entriesByModule[e.moduleId]) {
         entriesByModule[e.moduleId] = [];
-        // 获取模块信息
-        const mod = this.modules[e.moduleId];
-        moduleInfo[e.moduleId] = mod?.name || '外';
       }
       entriesByModule[e.moduleId].push(e);
     });
+    
+    // 获取所有模块信息（包括默认和自定义模块）
+    const allModules = await db.modules.toArray();
+    const moduleInfo = {};
+    allModules.forEach(mod => {
+      moduleInfo[mod.id] = mod.name;
+    });
+    // 补充默认模块
+    Object.keys(this.modules).forEach(key => {
+      if (!moduleInfo[key]) {
+        moduleInfo[key] = this.modules[key].name;
+      }
+    });
+    
     const moduleIds = Object.keys(entriesByModule);
     
     // 生成选择题 - 按语言平均分配
