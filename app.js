@@ -4830,8 +4830,17 @@ ${selectedEntries.map((e, i) => `${i+1}. ${e.original} - ${e.translation}`).join
     // 移除中文翻译的辅助函数
     const removeChineseTranslation = (text) => {
       if (!text) return text;
-      // 移除括号及其中的中文内容（包括中文标点）
-      return text.replace(/\uff08[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]+?\uff09/g, '').trim();
+      // 移除各种常见的中文翻译格式：
+      // 1. （中文） - 全角括号包围
+      // 2. (中文) - 半角括号包围
+      // 3. . 中文  或 。中文 - 句点后跟中文
+      // 4. 空格+中文 - 空格后全是中文的部分
+      return text
+        .replace(/\uff08[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]+?\uff09/g, '')  // （中文）
+        .replace(/\([\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]+?\)/g, '')      // (中文)
+        .replace(/[\.．]\s*[\u4e00-\u9fa5][\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]*$/g, '')  // . 中文结尾
+        .replace(/\s+[\u4e00-\u9fa5][\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]*$/g, '')  // 空格+中文结尾
+        .trim();
     };
     
     const prompt = `基于以下${mod.name}学习条目，生成${typeNames[type]}。
