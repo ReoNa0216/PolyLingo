@@ -4229,10 +4229,17 @@ ${wordsList}
     `;
     
     if (entry.explanation) {
+      // 检测是否为自定义模块，如果是则使用 Markdown 渲染
+      const isCustomModule = entry.moduleId && entry.moduleId.startsWith('custom_');
+      const explanationContent = isCustomModule 
+        ? marked.parse(entry.explanation)
+        : entry.explanation;
+      const contentClass = isCustomModule ? 'markdown-content' : '';
+      
       answerHtml += `
         <div class="p-4 bg-blue-50 rounded-lg">
           <div class="text-sm text-blue-600 mb-1">用法解释</div>
-          <div class="text-primary-800">${entry.explanation}</div>
+          <div class="text-primary-800 ${contentClass} max-h-60 overflow-y-auto">${explanationContent}</div>
         </div>
       `;
     }
