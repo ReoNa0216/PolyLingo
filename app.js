@@ -4606,68 +4606,16 @@ ${wordsList}
   async generateQuestionsOfType(entries, count, type, settings, startIndex) {
     const selectedEntries = entries.slice(startIndex, startIndex + Math.min(count * 2, entries.length));
     
-    if (settings.apiKey) {
-      try {
-        return await this.callAIForTestByType(selectedEntries, count, type, settings);
-      } catch (error) {
-        console.warn(`AI generation failed for ${type}:`, error);
-      }
+    if (!settings.apiKey) {
+      throw new Error('未配置API Key，请先在设置中配置OpenAI/GLM API');
     }
     
-    // Fallback
-    return this.generateFallbackQuestionsByType(selectedEntries, count, type);
-  },
-  
-  // 使用AI基于学习条目生成测试题
-  async callAIForTestFromEntries(entries, count, types, settings) {
-    const mod = this.modules[this.currentModule];
-    // 随机选择条目用于生成题目
-    const selectedEntries = entries.sort(() => 0.5 - Math.random()).slice(0, Math.min(count * 2, entries.length));
-    
-    const prompt = `基于以下${mod.name}学习条目，生成${count}道测试题。
-
-学习条目：
-${selectedEntries.map((e, i) => `${i+1}. ${e.original} - ${e.translation}`).join('\n')}
-
-要求：
-1. 题型包括：${types.join(', ')}
-2. 中翻译、词汇选择、填空等
-3. 每题包含答案和详细解析
-4. 适合初学者水平
-
-返回JSON格式：
-[{
-  "type": "choice" | "fill" | "translation",
-  "question": "题目内容",
-  "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"],
-  "answer": "正确答案",
-  "explanation": "解析说明"
-}]`;
-
-    const response = await fetch(`${settings.apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages: [
-          { role: 'system', content: '你是一位专业的语言测试题目编写专家。' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.3
-      })
-    });
-    
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    
-    const data = await response.json();
-    const content_text = data.choices[0].message.content;
-    
-    const jsonMatch = content_text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    throw new Error('Invalid response format');
+    try {
+      return await this.callAIForTestByType(selectedEntries, count, type, settings);
+    } catch (error) {
+      console.warn(`AI generation failed for ${type}:`, error);
+      throw error;
+    }
   },
   
   // 基于条目生成简单测试题（无API时 - 优先使用例句）
@@ -4807,6 +4755,7 @@ ${selectedEntries.map((e, i) => `${i+1}. ${e.original} - ${e.translation}`).join
 - 正确答案字母随机分布
 - 如果条目是名词，可以考虑性别变化的题目
 - 如果条目是动词，可以考虑时态或分词的题目
+- 严格检查：四个选项必须是完全不同的内容，禁止出现两个选项内容相同的情况
 
 禁止的错误示例：
 - 选项重复（如 A. apple / B. apple / C. orange）
