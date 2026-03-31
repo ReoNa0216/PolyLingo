@@ -4860,34 +4860,63 @@ ${typePrompts[type]}
     } catch (parseError) {
       console.warn('JSON parse failed, trying to fix...', parseError.message);
       
-      // 尝试修复常见问题：字符串值中的未转义换行和引号
       try {
-        let fixedStr = jsonStr;
+        // 简单粗暴但有效的方法：逐个处理字符串值
+        let fixedStr = '';
+        let inString = false;
+        let escaped = false;
+        let result = [];
         
-        // 方法1: 先尝试修复明显的问题 - 将所有真实换行转义为 \n
-        // 这会处理字符串值内部的换行
-        fixedStr = fixedStr.replace(/"([^"]*\n[^"]*)"/gs, (match) => {
-          return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-        });
+        for (let i = 0; i < jsonStr.length; i++) {
+          const char = jsonStr[i];
+          const prevChar = i > 0 ? jsonStr[i - 1] : '';
+          
+          if (escaped) {
+            result.push(char);
+            escaped = false;
+            continue;
+          }
+          
+          if (char === '\\') {
+            result.push(char);
+            escaped = true;
+            continue;
+          }
+          
+          if (char === '"') {
+            if (!inString) {
+              // 开始字符串
+              inString = true;
+              result.push(char);
+            } else {
+              // 检查这是否是字符串结束还是内部引号
+              // 通过查看后面的字符来判断
+              let j = i + 1;
+              while (j < jsonStr.length && /\s/.test(jsonStr[j])) j++;
+              const nextChar = jsonStr[j];
+              
+              // 如果后面是 , : } ] 或结尾，说明是字符串结束
+              if (nextChar === ',' || nextChar === ':' || nextChar === '}' || nextChar === ']' || j >= jsonStr.length) {
+                inString = false;
+                result.push(char);
+              } else {
+                // 内部引号，需要转义
+                result.push('\\"');
+              }
+            }
+            continue;
+          }
+          
+          // 处理字符串内部的换行
+          if (inString && (char === '\n' || char === '\r')) {
+            result.push(char === '\n' ? '\\n' : '\\r');
+            continue;
+          }
+          
+          result.push(char);
+        }
         
-        // 方法2: 修复字符串值中的未转义引号（非开头/结尾的引号）
-        // 逐个处理每个字段
-        const fields = ['question', 'explanation', 'options', 'answer'];
-        fields.forEach(field => {
-          // 匹配该字段的内容
-          const fieldRegex = new RegExp(`"${field}": "([\\s\\S]*?)"(?=,|\\}|\\]|$)`, 'gs');
-          fixedStr = fixedStr.replace(fieldRegex, (match, content) => {
-            // 转义内容中的引号（确保只转义内容中的，而不是字段边界的）
-            let escaped = content
-              .replace(/\\/g, '\\\\')     // 先转义反斜杠
-              .replace(/"/g, '\\"')        // 转义引号
-              .replace(/\n/g, '\\n')        // 转义换行
-              .replace(/\r/g, '\\r')        // 转义回车
-              .replace(/\t/g, '\\t');       // 转义制表符
-            return `"${field}": "${escaped}"`;
-          });
-        });
-        
+        fixedStr = result.join('');
         const questions = JSON.parse(fixedStr);
         return questions.map(q => ({ ...q, type }));
       } catch (fixError) {
