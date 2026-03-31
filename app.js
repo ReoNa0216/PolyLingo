@@ -4857,21 +4857,29 @@ ${typePrompts[type]}
     } catch (parseError) {
       console.warn('JSON parse failed, trying to fix...', parseError.message);
       
-      // 尝试修复常见问题：字符串值中的未转义换行
+      // 尝试修复常见问题：字符串值中的未转义换行和引号
       try {
         let fixedStr = jsonStr;
         
-        // 修复字符串值中的换行符（JSON 字符串值中的真实换行需要转义为 \n）
-        // 逐个处理每个字段值
+        // 修复字符串值中的换行符
         fixedStr = fixedStr.replace(/"([^"\n]*\n[^"]*)"/g, (match) => {
-          // 将字符串中的真实换行转义为 \n
           return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+        });
+        
+        // 修复字符串值中的未转义引号（如中文引号 "内容"）
+        // 将字符串内部的 " 转义为 \\"
+        fixedStr = fixedStr.replace(/"([^"]*)"([^"]*)"/g, (match, p1, p2) => {
+          // 如果中间的部分包含字母/中文，说明是字符串内的引号
+          if (p2 && /[a-zA-Z\u4e00-\u9fa5]/.test(p2.substring(0, 1))) {
+            return '"' + p1 + '\\"' + p2 + '"';
+          }
+          return match;
         });
         
         const questions = JSON.parse(fixedStr);
         return questions.map(q => ({ ...q, type }));
       } catch (fixError) {
-        console.error('JSON content:', jsonStr.substring(0, 300));
+        console.error('JSON content:', jsonStr.substring(0, 400));
         throw new Error(`JSON parse error: ${parseError.message}. Please check API response format.`);
       }
     }
