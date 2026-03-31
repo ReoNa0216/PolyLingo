@@ -4866,18 +4866,17 @@ ${typePrompts[type]}
           return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         });
         
-        // 修复所有字符串值中的未转义引号
-        // 逐个处理每个字段，将字符串内部的 " 转义
-        fixedStr = fixedStr.replace(/"type": "([^"]+)"/g, '"type": "$1"');
-        fixedStr = fixedStr.replace(/"question": "(.*?)"(?=,\s*"options"|,"options")/gs, (match, content) => {
-          // 转义内容中的引号
-          const escaped = content.replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-          return '"question": "' + escaped + '"';
-        });
-        fixedStr = fixedStr.replace(/"explanation": "(.*?)"(?=\s*[,}\]])/gs, (match, content) => {
-          // 转义内容中的引号
-          const escaped = content.replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-          return '"explanation": "' + escaped + '"';
+        // 修复所有 JSON 字符串值中的未转义引号
+        // 逐个匹配 "key": "value" 模式，转义 value 中的引号
+        fixedStr = fixedStr.replace(/"([^"]+)":\s*"([^"]*)"/g, (match, key, value) => {
+          // 转义值中的引号和换行
+          const escapedValue = value
+            .replace(/\\/g, '\\\\')  // 先转义反斜杠
+            .replace(/"/g, '\\"')      // 转义引号
+            .replace(/\n/g, '\\n')      // 转义换行
+            .replace(/\r/g, '\\r')      // 转义回车
+            .replace(/\t/g, '\\t');     // 转义制表符
+          return '"' + key + '": "' + escapedValue + '"';
         });
         
         const questions = JSON.parse(fixedStr);
