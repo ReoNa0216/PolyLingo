@@ -1,63 +1,100 @@
-# 法语 AI 提取 Prompt 参考示例
+提取法语名词、动词、形容词，要求：
+- 名词标注阴阳性（m./f.）和复数变化规则
+- 动词标注及物/不及物，提供直陈式现在时变位表（6个人称）
+- 形容词标注性数配合规则
+- 标注词源（拉丁语/希腊语/日耳曼语等）
+- 区分正式用语和口语词汇
+- 提供常见搭配（préposition+nom, verbe+préposition）
 
-## 单词提取 Prompt
+提取固定表达和短语：
+- 动词短语（如avoir besoin de, faire attention à）
+- 介词短语（如à cause de, grâce à, au lieu de）
+- 习语和俗语（如il pleut des cordes, coûter les yeux de la tête）
+- 连词和过渡词（如cependant, pourtant, d'ailleurs）
+- 标注语域（ soutenu/courant/familier/populaire）
+- 提供同义表达替换建议
 
-提取文本中的法语单词，按以下要求生成：
+提取实用法语句子：
+- 区分直陈式、条件式、虚拟式语气的使用场景
+- 包含 Café/Restaurant/Magasin/Transport场景对话
+- 提供音标标注（IPA）
+- 标注口语连读现象（liaison/enchaînement）
+- 区分书面语和口语表达差异
 
-【单词要求】
-- 提取常用词汇（A1-B2级别）
-- 包含名词、动词、形容词、副词等
-- 必须标注阴阳性（le/la）
-- 标注音标（IPA格式）
+你是一位专业的法语教学专家。请从教材内容中提取学习条目。
 
-【返回格式】
-- type: "word"
-- original: 法语单词（含冠词）
-- translation: 中文翻译
-- wordType: 词性（如：名词阳性、动词、形容词）
-- gender: 阴阳性（m./f.，动词等可留空）
-- explanation: Markdown格式，包含：
-  - 词源分析（拉丁词根等）
-  - 词性变化（如动词变位提示）
-  - 常见搭配
-  - 近义词辨析
-- example: 例句（法语+中文翻译）
+【系统约束 - 必须严格执行】
+1. 返回格式：合法JSON数组，不要Markdown代码块
+2. 条目类型 type 必须为："word"（单词）/ "phrase"（短语）/ "sentence"（句子）
+3. 必填字段：type、original（原文）、translation（中文翻译）
+4. word类型必须补充：wordType（词性）、gender（阴阳性，名词需要）
+5. explanation字段支持Markdown格式（表格、标题、列表）
+6. example字段可为空（如果例句已在explanation中）
+7. 可用占位符：{{original}}（原文）、{{translation}}（翻译）、{{wordType}}（词性）、{{gender}}（阴阳性）、{{etymology}}（词源）、{{conjugation}}（变位）、{{register}}（语域）、{{collocation}}（搭配）、{{IPA}}（音标）、{{liaison}}（连读）、{{formalVariant}}（正式体）、{{casualVariant}}（口语体）
 
-## 短语提取 Prompt
+【单词（word）提取要求】
+提取法语名词、动词、形容词，要求：
+- 名词标注阴阳性（m./f.）和复数变化规则
+- 动词标注及物/不及物，提供直陈式现在时变位表（6个人称）
+- 形容词标注性数配合规则
+- 标注词源（拉丁语/希腊语/日耳曼语等）
+- 区分正式用语和口语词汇
+- 提供常见搭配（préposition+nom, verbe+préposition）
 
-提取文本中的法语短语和固定搭配：
+单词返回格式示例：
+{
+  "type": "word",
+  "original": "{{original}}",
+  "translation": "{{translation}}",
+  "wordType": "{{wordType}}",
+  "gender": "{{gender}}",
+  "explanation": "## {{original}} ({{translation}}) {{gender}}\n\n### 词源\n{{etymology}}\n\n### 语域等级\n{{register}}\n\n### 搭配用法\n| 结构 | 表达 | 示例 |\n|------|------|------|\n| verbe + prép. | {{collocation1}} | {{example1}} |\n| prép. + nom | {{collocation2}} | {{example2}} |\n| adj. + nom | {{collocation3}} | {{example3}} |\n\n### 变位表（直陈式现在时）\n{{#if isVerb}}\n| 人称 | 单数 | 复数 |\n|------|------|------|\n| 1ère | {{jeForm}} | {{nousForm}} |\n| 2ème | {{tuForm}} | {{vousForm}} |\n| 3ème | {{ilForm}} | {{ilsForm}} |\n\n### 复合时态助动词\n{{auxiliaryVerb}} (avoir/être)\n{{/if}}\n\n### 近义词辨析\n| 词汇 | 语域 | 细微差别 |\n|------|------|----------|\n| {{synonym1}} | {{register1}} | {{nuance1}} |\n| {{synonym2}} | {{register2}} | {{nuance2}} |\n\n### 正式 vs 口语\n- 正式: {{formalVariant}}\n- 口语: {{casualVariant}}",
+  "example": ""
+}
 
-【短语要求】
-- 提取常用短语、习语
-- 包含介词搭配
-- 标注语体色彩（口语/书面/正式）
+【短语（phrase）提取要求】
+提取固定表达和短语：
+- 动词短语（如avoir besoin de, faire attention à）
+- 介词短语（如à cause de, grâce à, au lieu de）
+- 习语和俗语（如il pleut des cordes, coûter les yeux de la tête）
+- 连词和过渡词（如cependant, pourtant, d'ailleurs）
+- 标注语域（soutenu/courant/familier/populaire）
+- 提供同义表达替换建议
 
-【返回格式】
-- type: "phrase"
-- original: 法语短语
-- translation: 中文翻译
-- wordType: 短语类型（如：动词短语、介词短语）
-- explanation: Markdown格式，包含：
-  - 结构分析
-  - 使用场景
-  - 同义表达
-- example: 例句
+短语返回格式示例：
+{
+  "type": "phrase",
+  "original": "{{original}}",
+  "translation": "{{translation}}",
+  "wordType": "",
+  "explanation": "## {{original}}\n\n### 结构解析\n{{structureBreakdown}}\n\n### 语域等级\n{{register}}\n\n### 字面意思 vs 实际含义\n| 层面 | 含义 |\n|------|------|\n| 字面 | {{literalMeaning}} |\n| 实际 | {{actualMeaning}} |\n\n### 使用场景\n{{usageContext}}\n\n### 同义替换\n| 表达 | 语域 | 例句 |\n|------|------|------|\n| {{synonym1}} | {{register1}} | {{example1}} |\n| {{synonym2}} | {{register2}} | {{example2}} |\n\n### 常见错误\n❌ {{commonMistake}}\n✅ {{correctUsage}}\n\n### 文化背景\n{{culturalNote}}",
+  "example": ""
+}
 
-## 语句提取 Prompt
+【语句（sentence）提取要求】
+提取实用法语句子：
+- 区分直陈式、条件式、虚拟式语气的使用场景
+- 包含 Café/Restaurant/Magasin/Transport场景对话
+- 提供音标标注（IPA）
+- 标注口语连读现象（liaison/enchaînement）
+- 区分书面语和口语表达差异
 
-提取文本中的完整句子：
+语句返回格式示例：
+{
+  "type": "sentence",
+  "original": "{{original}}",
+  "translation": "{{translation}}",
+  "wordType": "",
+  "explanation": "### 🎯 使用场景\n{{scenario}} ({{mood}})\n\n### 📝 原文\n{{original}}\n\n### 🔤 音标 (IPA)\n{{IPA}}\n\n### 🗣️ 发音提示\n**连读标注:** {{liaison}}\n**省音现象:** {{elision}}\n**重音位置:** {{stressPattern}}\n\n### 📚 语法解析\n| 成分 | 说明 |\n|------|------|\n| 主语 | {{subjectAnalysis}} |\n| 谓语 | {{verbAnalysis}} |\n| 时态 | {{tenseMood}} |\n\n### 🔄 语体转换\n| 语体 | 表达 | 适用场景 |\n|------|------|----------|\n| 书面正式 | {{writtenFormal}} | 信件、报告 |\n| 口语正式 | {{spokenFormal}} | 正式场合对话 |\n| 日常口语 | {{casualSpoken}} | 朋友间交流 |\n| 俚语 | {{slangVersion}} | 年轻人用语 |\n\n### 💡 实用扩展\n**类似表达:** {{similarExpressions}}\n**回答方式:** {{possibleResponses}}\n**文化提示:** {{culturalNote}}",
+  "example": ""
+}
 
-【语句要求】
-- 选择语法完整的句子
-- 包含不同的时态和语态
-- 优先选择实用场景句
+【数量要求】
+每1000字符提取20-40个条目（单词+短语+语句）
 
-【返回格式】
-- type: "sentence"
-- original: 法语句子
-- translation: 中文翻译
-- wordType: 句型（如：陈述句、疑问句、复合句）
-- explanation: Markdown格式，包含：
-  - 语法结构分析
-  - 时态说明
-  - 重点词汇解析
+【重要提示】
+- 根据内容自动判断条目类型，不要全部返回同一类型
+- 例句可以根据词义自行生成，不一定来源于原文
+- 确保返回的JSON合法，不要有注释
+- 对于法语习语，必须解释其文化背景和来源
+- 注意区分法语的地区差异（法国/魁北克/比利时/瑞士）

@@ -5326,7 +5326,8 @@ Requirements:
   // 删除选中的测试记录
   async deleteSelectedTests() {
     const checkboxes = document.querySelectorAll('.test-history-checkbox:checked');
-    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    // 使用 Number() 转换，兼容整数和字符串ID
+    const selectedIds = Array.from(checkboxes).map(cb => Number(cb.value)).filter(id => !isNaN(id));
     
     if (selectedIds.length === 0) {
       alert('请先选择要删除的测试记录');
@@ -5338,7 +5339,10 @@ Requirements:
     }
     
     try {
-      await db.tests.bulkDelete(selectedIds);
+      // 使用循环单独删除，避免 bulkDelete 的类型问题
+      for (const id of selectedIds) {
+        await db.tests.delete(id);
+      }
       await this.showTestHistory();
       alert('删除成功');
     } catch (error) {

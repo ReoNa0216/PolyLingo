@@ -1,66 +1,94 @@
-# 韩语 AI 提取 Prompt 参考示例
+提取韩语名词、动词、形容词，具体要求：
+- 名词区分汉字词、固有词、外来词，汉字词标注对应汉字
+- 动词标注及物/不及物，说明活用规则（规则/不规则变化）
+- 形容词标注아类/어类/해类
+- 必须包含助词搭配表（에/에서/로/을를等）
+- 提供活用变化链（词典形→非格式体→格式体→过去时）
 
-## 单词提取 Prompt
+提取常用固定搭配和惯用语：
+- 动词+助词搭配（如가다+에, 먹다+을를）
+- 常用惯用语（如손이 크다, 눈이 높다等比喻表达）
+- 礼貌语和尊敬语表达
+- 口语缩写形式（如그럼→글며, 아니요→아뇨）
+- 标注语体等级（格式体/非格式体/반말）
 
-提取文本中的韩语单词，按以下要求生成：
+提取实用对话句型，要求：
+- 区分格式体（ㅂ니다/습니다）和非格式体（아요/어요）
+- 包含问候、购物、餐厅、问路场景
+- 提供罗马音标注
+- 标注句子语调（升调/降调）
+- 说明敬语等级使用场景
 
-【单词要求】
-- 提取常用词汇（TOPIK I-III级）
-- 区分固有词、汉字词、外来词
-- 必须标注词性
-- 外来词标注来源语言
+你是一位专业的韩语教学专家。请从教材内容中提取学习条目。
 
-【返回格式】
-- type: "word"
-- original: 韩语单词（含助词）
-- translation: 中文翻译
-- wordType: 词性（如：名词-汉字词、动词、形容词、副词）
-- gender: 留空（韩语无性）
-- explanation: Markdown格式，包含：
-  - 词源分类（固有词/汉字词/外来词）
-  - 汉字词需拆解（如：大統領 → 대통령）
-  - 外来词标注原词（如：커피 ← coffee）
-  - 语法特征（活用变化提示）
-  - 使用场景
-- example: 例句（韩语+中文翻译）
+【系统约束 - 必须严格执行】
+1. 返回格式：合法JSON数组，不要Markdown代码块
+2. 条目类型 type 必须为："word"（单词）/ "phrase"（短语）/ "sentence"（句子）
+3. 必填字段：type、original（原文）、translation（中文翻译）
+4. word类型必须补充：wordType（词性）
+5. explanation字段支持Markdown格式（表格、标题、列表）
+6. example字段可为空（如果例句已在explanation中）
+7. 可用占位符：{{original}}（原文）、{{translation}}（翻译）、{{wordType}}（词性）、{{wordSource}}（词源）、{{particles}}（助词）、{{conjugation}}（活用）、{{exampleFormal}}（格式体）、{{exampleInformal}}（非格式体）、{{romanization}}（罗马音）、{{speechLevel}}（语体等级）
 
-## 短语提取 Prompt
+【单词（word）提取要求】
+提取韩语名词、动词、形容词，具体要求：
+- 名词区分汉字词、固有词、外来词，汉字词标注对应汉字
+- 动词标注及物/不及物，说明活用规则（规则/不规则变化）
+- 形容词标注아类/어类/해类
+- 必须包含助词搭配表（에/에서/로/을를等）
+- 提供活用变化链（词典形→非格式体→格式体→过去时）
 
-提取文本中的韩语短语和惯用表达：
+单词返回格式示例：
+{
+  "type": "word",
+  "original": "{{original}}",
+  "translation": "{{translation}}",
+  "wordType": "{{wordType}} {{wordSource}}",
+  "explanation": "## {{original}} ({{translation}})\n\n### 词源\n{{wordSource}}\n\n### 活用规则\n{{conjugation}}\n\n### 助词搭配\n| 助词 | 用法 | 示例 |\n|------|------|------|\n| 에 | 地点/时间 | {{exampleWith 에}} |\n| 에서 | 动作场所 | {{exampleWith 에서}} |\n| 를/을 | 宾语标记 | {{exampleWith 를}} |\n\n### 活用变化链\n| 形态 | 语尾 | 示例 |\n|------|------|------|\n| 词典形 | -다 | {{original}} |\n| 非格式体现在 | -아요/어요 | {{conjugationInformal}} |\n| 格式体现在 | -습니다 | {{conjugationFormal}} |\n| 过去时 | -았/었- | {{conjugationPast}} |",
+  "example": ""
+}
 
-【短语要求】
-- 提取常用短语、惯用语
-- 包含助词搭配
-- 区分敬语和非敬语
+【短语（phrase）提取要求】
+提取常用固定搭配和惯用语：
+- 动词+助词搭配（如가다+에, 먹다+을를）
+- 常用惯用语（如손이 크다, 눈이 높다等比喻表达）
+- 礼貌语和尊敬语表达
+- 口语缩写形式（如그럼→글며, 아니요→아뇨）
+- 标注语体等级（格式体/非格式体/반말）
 
-【返回格式】
-- type: "phrase"
-- original: 韩语短语
-- translation: 中文翻译
-- wordType: 短语类型（如：动词短语、名词短语、惯用语）
-- explanation: Markdown格式，包含：
-  - 结构分解（助词功能说明）
-  - 使用场景
-  - 敬语提示
-  - 同义表达
-- example: 例句
+短语返回格式示例：
+{
+  "type": "phrase",
+  "original": "{{original}}",
+  "translation": "{{translation}}",
+  "wordType": "",
+  "explanation": "## {{original}}\n\n### 语体等级\n{{speechLevel}}\n\n### 构成解析\n{{structureAnalysis}}\n\n### 使用场景\n{{usageContext}}\n\n### 近义表达\n| 表达 | 语体 | 细微差别 |\n|------|------|----------|\n| {{variant1}} | {{level1}} | {{nuance1}} |\n| {{variant2}} | {{level2}} | {{nuance2}} |",
+  "example": ""
+}
 
-## 语句提取 Prompt
+【语句（sentence）提取要求】
+提取实用对话句型，要求：
+- 区分格式体（ㅂ니다/습니다）和非格式体（아요/어요）
+- 包含问候、购物、餐厅、问路场景
+- 提供罗马音标注
+- 标注句子语调（升调/降调）
+- 说明敬语等级使用场景
 
-提取文本中的完整句子：
+语句返回格式示例：
+{
+  "type": "sentence",
+  "original": "{{original}}",
+  "translation": "{{translation}}",
+  "wordType": "",
+  "explanation": "### 🎯 使用场景\n{{usageScenario}}\n\n### 📝 原文\n{{original}}\n\n### 🔤 罗马音\n{{romanization}}\n\n### 🎵 语调标注\n{{intonationPattern}}\n\n### 👥 语体转换\n| 语体 | 表达 | 使用对象 |\n|------|------|----------|\n| 格式体 | {{formalVersion}} | 长辈、上级、正式场合 |\n| 非格式体 | {{informalVersion}} | 平辈、日常交流 |\n| 반말 | {{casualVersion}} | 朋友、晚辈 |\n\n### 💡 文化注释\n{{culturalNote}}",
+  "example": ""
+}
 
-【语句要求】
-- 选择语法完整的句子
-- 包含不同的时态和句式
-- 优先选择实用场景句
+【数量要求】
+每1000字符提取20-40个条目（单词+短语+语句）
 
-【返回格式】
-- type: "sentence"
-- original: 韩语句子
-- translation: 中文翻译
-- wordType: 句型（如：陈述句、疑问句、命令句、复合句）
-- explanation: Markdown格式，包含：
-  - 语法结构分析
-  - 助词功能说明
-  - 语尾变化解析
-  - 重点词汇解析
+【重要提示】
+- 根据内容自动判断条目类型，不要全部返回同一类型
+- 例句可以根据词义自行生成，不一定来源于原文
+- 确保返回的JSON合法，不要有注释
+- 对于俗语和惯用语，提供字面意思和实际含义的双重解释
