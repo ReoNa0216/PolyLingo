@@ -225,7 +225,7 @@ You can use placeholders in Prompts, such as `{{word}}`, `{{translation}}`, `{{e
 
 **If you don't use the news fetching feature** (only upload your own materials), **you don't need to deploy the backend**, skip this section.
 
-**If you need to use the news fetching feature** (to get news from ZDF, BBC, Asahi Shimbun, etc.), you need to deploy your own backend proxy service:
+**If you need to use the news fetching feature** (to get news from ZDF, BBC, Asahi Shimbun, etc.), you can choose to deploy your own backend proxy service (if not, use public backend proxy service from the author 'https://polylingo-proxy.vercel.app'):
 
 ```bash
 cd backend
