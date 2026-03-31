@@ -23,7 +23,7 @@
 ### 1. 🤖 AI 智能提取
 - **自定义语言支持**：不仅支持德语、日语、英语等默认语言，还可以添加任何你想学习的语言
 - **智能 Prompt 配置**：为每种语言自定义 AI 提取要求（如词性标注、语法说明、使用场景等）
-- **批量导入**：上传 TXT、Markdown 等格式的文本文件，AI 自动提取学习条目
+- **批量导入**：上传 TXT、Markdown、PDF、Word 等格式的文本文件，AI 自动提取学习条目
 - **文章处理**：直接粘贴文章，AI 会识别并提取其中的重点词汇和表达
 
 ### 2. 📚 学习条目管理
@@ -86,11 +86,7 @@
 
 ## 🚀 快速开始
 
-### 方式一：直接使用（推荐）
-
-访问部署好的在线版本（如果有），或按照方式二本地运行。
-
-### 方式二：本地运行
+### 本地运行
 
 #### 步骤 1：下载项目
 
@@ -106,33 +102,15 @@ cd PolyLingo
 
 #### 步骤 2：本地运行
 
-由于 PolyLingo 是纯前端应用（使用 IndexedDB 本地存储），你可以直接用浏览器打开：
-
 ```bash
 # 进入项目目录
 cd PolyLingo
 
-# 方式 1：使用 Python 简单 HTTP 服务器（推荐）
-# Python 3
+# 启动本地服务器
 python -m http.server 8080
-
-# Python 2
-python -m SimpleHTTPServer 8080
 ```
 
 然后访问 `http://localhost:8080`
-
-```bash
-# 方式 2：使用 Node.js 的 http-server
-npx http-server -p 8080
-```
-
-```bash
-# 方式 3：使用 VS Code 的 Live Server 插件
-# 在 VS Code 中右键点击 index.html → "Open with Live Server"
-```
-
-**注意**：直接双击 `index.html` 打开可能会导致部分功能异常（浏览器安全限制），建议使用上述方式运行本地服务器。
 
 #### 步骤 3：配置 AI API
 
@@ -141,7 +119,7 @@ npx http-server -p 8080
    - **API URL**：你的 AI 服务地址（如 OpenAI: `https://api.openai.com/v1`，或 GLM: `https://open.bigmodel.cn/api/paas/v4`）
    - **API Key**：你的 API 密钥
    - **模型名称**：如 `gpt-4`、`gpt-3.5-turbo`、`glm-4` 等
-   - **Max Tokens**：建议设置为 4000-8000，确保能处理长文本
+   - **Max Tokens**：建议设置为 8000-16000，确保能处理长文本
 3. 点击 **保存设置**
 
 #### 步骤 4：开始学习
@@ -249,9 +227,6 @@ A: 所有数据都存储在浏览器的 IndexedDB 中，完全本地化，不会
 
 **Q: 如何备份数据？**  
 A: 目前需要手动导出，建议定期备份浏览器数据或等待后续版本添加导出功能。
-
-**Q: 支持手机使用吗？**  
-A: 目前界面主要为桌面端优化，手机端可以访问但体验可能不佳。建议在电脑端使用以获得最佳体验。
 
 ---
 

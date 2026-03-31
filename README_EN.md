@@ -250,9 +250,6 @@ A: All data is stored in the browser's IndexedDB, completely local, and will not
 **Q: How to backup data?**  
 A: Currently requires manual export. It is recommended to regularly backup browser data or wait for a future version to add export functionality.
 
-**Q: Is mobile supported?**  
-A: The interface is currently optimized for desktop. While it can be accessed on mobile, the experience may not be ideal. It is recommended to use on desktop for the best experience.
-
 ---
 
 ## 🤝 Contribution and Feedback
