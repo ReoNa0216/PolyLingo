@@ -51,11 +51,12 @@
 
 ### 5. 📰 新闻抓取（内置材料源）
 - **德语**：ZDF Heute 新闻
+- **日语**：朝日新聞 (Asahi Shimbun)
 - **英语**：BBC News、The Guardian、NPR
 - **自动提取**：抓取新闻后自动调用 AI 提取学习条目
 
 ### 6. 🔧 高度可配置
-- **API 配置**：支持 OpenAI、GLM、Claude 等兼容 OpenAI API 格式的服务
+- **API 配置**：支持 OpenAI、GLM 等兼容 OpenAI API 格式的服务
 - **每日学习量**：自定义每日复习条目数量
 - **Prompt 模板**：提供法语、韩语等参考 Prompt，也可完全自定义
 
@@ -108,6 +109,9 @@ cd PolyLingo
 由于 PolyLingo 是纯前端应用（使用 IndexedDB 本地存储），你可以直接用浏览器打开：
 
 ```bash
+# 进入项目目录
+cd PolyLingo
+
 # 方式 1：使用 Python 简单 HTTP 服务器（推荐）
 # Python 3
 python -m http.server 8080
@@ -156,7 +160,7 @@ npx http-server -p 8080
 
 1. 选择要学习的语言模块
 2. 点击 **上传材料** 或将文件拖入上传区域
-3. 支持格式：TXT、Markdown
+3. 支持格式：TXT、Markdown、PDF、Word（需要后端服务支持）
 4. AI 会自动提取学习条目，等待处理完成
 
 ##### 开始复习
@@ -201,7 +205,6 @@ PolyLingo/
 ├── prompt-examples/    # Prompt 参考示例
 │   ├── 法语参考prompt.txt
 │   └── 韩语参考prompt.txt
-├── RAILWAY_DEPLOY.md   # Railway 部署指南
 └── README.md           # 本文件
 ```
 
@@ -219,9 +222,9 @@ PolyLingo/
 
 Prompt 中可以使用占位符，如 `{{word}}`、`{{translation}}`、`{{explanation}}` 等，系统会自动替换为具体要求。
 
-### 后端代理部署（可选）
+### 后端代理部署（可选，仅用于新闻抓取功能）
 
-如果你需要使用新闻抓取功能，可以部署后端代理服务到 Vercel：
+如果你需要使用新闻抓取功能（获取 ZDF、BBC、朝日新聞等），需要部署后端代理服务：
 
 ```bash
 cd backend
@@ -230,7 +233,9 @@ vercel login
 vercel
 ```
 
-部署完成后，将获取的 URL 配置到前端代码中的 `API_BASE_URL`。
+部署完成后，Vercel 会给你一个 URL（如 `https://your-project.vercel.app`）。将这个 URL 填写到前端设置中的 **代理服务地址**字段。
+
+**注意**：如果不使用新闻抓取功能（只上传自己的材料），则无需部署后端。
 
 ---
 
@@ -246,7 +251,7 @@ A: 所有数据都存储在浏览器的 IndexedDB 中，完全本地化，不会
 A: 目前需要手动导出，建议定期备份浏览器数据或等待后续版本添加导出功能。
 
 **Q: 支持手机使用吗？**  
-A: 支持，界面已做响应式适配，但建议在电脑端使用以获得最佳体验。
+A: 目前界面主要为桌面端优化，手机端可以访问但体验可能不佳。建议在电脑端使用以获得最佳体验。
 
 ---
 

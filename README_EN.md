@@ -51,11 +51,12 @@
 
 ### 5. 📰 News Fetching (Built-in Material Source)
 - **German**: ZDF Heute News
+- **Japanese**: Asahi Shimbun
 - **English**: BBC News, The Guardian, NPR
 - **Automatic Extraction**: Automatically calls AI to extract learning entries after fetching news
 
 ### 6. 🔧 Highly Configurable
-- **API Configuration**: Supports services compatible with the OpenAI API format (OpenAI, GLM, Claude, etc.)
+- **API Configuration**: Supports services compatible with the OpenAI API format (such as OpenAI, GLM, etc.)
 - **Daily Learning Volume**: Customize the number of daily review entries
 - **Prompt Templates**: Provides reference Prompts for French, Korean, etc.; also fully customizable
 
@@ -108,6 +109,9 @@ Or directly click **Code** → **Download ZIP** on the GitHub page and extract i
 Since PolyLingo is a pure frontend application (using IndexedDB for local storage), you can open it directly in your browser:
 
 ```bash
+# Enter the project directory
+cd PolyLingo
+
 # Method 1: Use Python simple HTTP server (recommended)
 # Python 3
 python -m http.server 8080
@@ -156,7 +160,7 @@ npx http-server -p 8080
 
 1. Select the language module you want to learn
 2. Click **Upload Materials** or drag files into the upload area
-3. Supported formats: TXT, Markdown
+3. Supported formats: TXT, Markdown, PDF, Word (requires backend service support)
 4. AI will automatically extract learning entries; wait for processing to complete
 
 ##### Start Reviewing
@@ -201,7 +205,6 @@ PolyLingo/
 ├── prompt-examples/    # Prompt reference examples
 │   ├── 法语参考prompt.txt
 │   └── 韩语参考prompt.txt
-├── RAILWAY_DEPLOY.md   # Railway deployment guide
 └── README.md           # This file
 ```
 
@@ -219,9 +222,9 @@ When adding custom languages, you can configure three types of Prompts:
 
 You can use placeholders in Prompts, such as `{{word}}`, `{{translation}}`, `{{explanation}}`, etc. The system will automatically replace them with specific requirements.
 
-### Backend Proxy Deployment (Optional)
+### Backend Proxy Deployment (Optional, only for news fetching)
 
-If you need to use the news fetching feature, you can deploy the backend proxy service to Vercel:
+If you need to use the news fetching feature (to get news from ZDF, BBC, Asahi Shimbun, etc.), you need to deploy the backend proxy service:
 
 ```bash
 cd backend
@@ -230,7 +233,9 @@ vercel login
 vercel
 ```
 
-After deployment, configure the obtained URL into `API_BASE_URL` in the frontend code.
+After deployment, Vercel will give you a URL (e.g., `https://your-project.vercel.app`). Enter this URL into the **Proxy Service URL** field in the frontend settings.
+
+**Note**: If you don't use the news fetching feature (only upload your own materials), you don't need to deploy the backend.
 
 ---
 
@@ -246,7 +251,7 @@ A: All data is stored in the browser's IndexedDB, completely local, and will not
 A: Currently requires manual export. It is recommended to regularly backup browser data or wait for a future version to add export functionality.
 
 **Q: Is mobile supported?**  
-A: Yes, the interface is responsively adapted, but it is recommended to use on desktop for the best experience.
+A: The interface is currently optimized for desktop. While it can be accessed on mobile, the experience may not be ideal. It is recommended to use on desktop for the best experience.
 
 ---
 
