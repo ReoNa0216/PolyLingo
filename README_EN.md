@@ -107,27 +107,36 @@ Or directly click **Code** → **Download ZIP** on the GitHub page and extract i
 
 Since PolyLingo is a pure frontend application (using IndexedDB for local storage), you can open it directly in your browser:
 
+**Windows:**
+
 ```bash
 # Enter the project directory
 cd PolyLingo
 
 # Method 1: Use Python simple HTTP server (recommended)
-# Python 3
 python -m http.server 8080
+```
 
-# Python 2
-python -m SimpleHTTPServer 8080
+**macOS:**
+
+```bash
+# Enter the project directory
+cd PolyLingo
+
+# Method 1: Use Python 3 (pre-installed on macOS)
+python3 -m http.server 8080
+
+# Method 2: Use PHP (if installed)
+php -S localhost:8080
+
+# Method 3: Use Node.js (if installed)
+npx http-server -p 8080
 ```
 
 Then visit `http://localhost:8080`
 
 ```bash
-# Method 2: Use Node.js http-server
-npx http-server -p 8080
-```
-
-```bash
-# Method 3: Use VS Code Live Server extension
+# Method 4: Use VS Code Live Server extension
 # Right-click index.html in VS Code → "Open with Live Server"
 ```
 
@@ -140,7 +149,7 @@ npx http-server -p 8080
    - **API URL**: Your AI service address (e.g., OpenAI: `https://api.openai.com/v1`, or GLM: `https://open.bigmodel.cn/api/paas/v4`)
    - **API Key**: Your API key
    - **Model Name**: Such as `gpt-4`, `gpt-3.5-turbo`, `glm-4`, etc.
-   - **Max Tokens**: Recommended to set to 4000-8000 to ensure long text can be processed
+   - **Max Tokens**: Recommended to set to 8000-16000 to ensure long text can be processed
 3. Click **Save Settings**
 
 #### Step 4: Start Learning
@@ -225,7 +234,7 @@ You can use placeholders in Prompts, such as `{{word}}`, `{{translation}}`, `{{e
 
 **If you don't use the news fetching feature** (only upload your own materials), **you don't need to deploy the backend**, skip this section.
 
-**If you need to use the news fetching feature** (to get news from ZDF, BBC, Asahi Shimbun, etc.), you can choose to deploy your own backend proxy service (if not, use public backend proxy service from the author 'https://polylingo-proxy.vercel.app'):
+**If you need to use the news fetching feature** (to get news from ZDF, BBC, Asahi Shimbun, etc.), please deploy your own backend proxy service (no public proxy provided):
 
 ```bash
 cd backend

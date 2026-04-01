@@ -101,12 +101,30 @@ cd PolyLingo
 
 #### 步骤 2：本地运行
 
+**Windows 用户：**
+
 ```bash
 # 进入项目目录
 cd PolyLingo
 
 # 启动本地服务器
 python -m http.server 8080
+```
+
+**Mac 用户：**
+
+```bash
+# 进入项目目录
+cd PolyLingo
+
+# 启动本地服务器（macOS 通常已预装 Python）
+python3 -m http.server 8080
+
+# 或者使用 PHP（如果已安装）
+php -S localhost:8080
+
+# 或者使用 Node.js（如果已安装）
+npx http-server -p 8080
 ```
 
 然后访问 `http://localhost:8080`
@@ -203,7 +221,7 @@ Prompt 中可以使用占位符，如 `{{word}}`、`{{translation}}`、`{{explan
 
 **如果不使用新闻抓取功能**（只上传自己的材料），**无需部署后端**，跳过此部分即可。
 
-**如果需要使用新闻抓取功能**（获取 ZDF、BBC、朝日新聞等外文新闻），用户可以选择自己部署后端代理服务（如不部署，则使用默认公共的 https://polylingo-proxy.vercel.app ）：
+**如果需要使用新闻抓取功能**（获取 ZDF、BBC、朝日新聞等外文新闻），请自行部署后端代理服务（不提供公共代理）：
 
 ```bash
 cd backend

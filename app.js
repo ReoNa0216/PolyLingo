@@ -5988,7 +5988,7 @@ Requirements:
     await db.settings.put({ id: 'model', value: document.getElementById('setting-model').value });
     await db.settings.put({ id: 'maxTokens', value: parseInt(document.getElementById('setting-max-tokens').value) || 8000 });
     await db.settings.put({ id: 'dailyLimit', value: parseInt(document.getElementById('setting-daily-limit').value) || 20 });
-    await db.settings.put({ id: 'proxyUrl', value: document.getElementById('setting-proxy-url').value.trim() || 'https://polylingo-proxy.vercel.app' });
+    await db.settings.put({ id: 'proxyUrl', value: document.getElementById('setting-proxy-url').value.trim() });
     
     this.closeSettings();
     alert('设置已保存');
@@ -6014,7 +6014,7 @@ Requirements:
       model: (model && model.value) || 'gpt-3.5-turbo',
       maxTokens: (maxTokens && maxTokens.value) || 8000,
       dailyLimit: (dailyLimit && dailyLimit.value) || 20,
-      proxyUrl: (proxyUrl && proxyUrl.value) || 'https://polylingo-proxy.vercel.app'
+      proxyUrl: (proxyUrl && proxyUrl.value) || ''
     };
   },
   
