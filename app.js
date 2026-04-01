@@ -6011,7 +6011,7 @@ Requirements:
     return {
       apiUrl: apiUrlValue,
       apiKey: (apiKey && apiKey.value) || '',
-      model: (model && model.value) || 'gpt-3.5-turbo',
+      model: (model && model.value) || '',
       maxTokens: (maxTokens && maxTokens.value) || 8000,
       dailyLimit: (dailyLimit && dailyLimit.value) || 20,
       proxyUrl: (proxyUrl && proxyUrl.value) || ''
