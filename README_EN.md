@@ -243,6 +243,10 @@ vercel login
 vercel
 ```
 
+**For macOS users:**
+- If you encounter permission errors, use `sudo`: `sudo npm install -g vercel`
+- When running Vercel CLI for the first time, macOS may show a security warning. Go to **System Settings > Privacy & Security** to allow it
+
 After deployment, Vercel will give you a URL (e.g., `https://your-project.vercel.app`).
 
 **Where to configure?**

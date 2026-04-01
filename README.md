@@ -230,6 +230,10 @@ vercel login
 vercel
 ```
 
+**Mac 用户注意事项**：
+- 如果提示权限不足，请加 `sudo`：`sudo npm install -g vercel`
+- 首次运行 Vercel CLI 时，系统可能会提示安全警告，需到**系统设置 > 隐私与安全**中允许
+
 部署完成后，Vercel 会给你一个 URL（如 `https://your-project.vercel.app`）。
 
 **在哪里配置？**
