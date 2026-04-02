@@ -1576,6 +1576,13 @@ ${chunk.substring(0, 8000)}
   
   // 获取 BBC 新闻
   async fetchBBCNews() {
+    // 检查代理服务器配置
+    const settings = await this.getSettings();
+    if (!settings.proxyUrl) {
+      alert('请先配置代理服务器地址\n\n请前往：设置 → 代理服务器地址');
+      return;
+    }
+    
     if (this.fetchedBBCFeeds.length === 0) {
       this.loadBBCHistory();
     }
@@ -1592,7 +1599,6 @@ ${chunk.substring(0, 8000)}
     if (status) status.textContent = '正在获取 BBC 新闻...';
     
     try {
-      const settings = await this.getSettings();
       const PROXY_BASE_URL = settings.proxyUrl;
       const apiUrl = `${PROXY_BASE_URL}/api/bbc/rss?category=${this.bbcCategory}`;
       
@@ -1766,6 +1772,13 @@ ${chunk.substring(0, 8000)}
   
   // 获取 The Guardian 新闻
   async fetchGuardianNews() {
+    // 检查代理服务器配置
+    const settings = await this.getSettings();
+    if (!settings.proxyUrl) {
+      alert('请先配置代理服务器地址\n\n请前往：设置 → 代理服务器地址');
+      return;
+    }
+    
     if (this.fetchedGuardianFeeds.length === 0) {
       this.loadGuardianHistory();
     }
@@ -1782,7 +1795,6 @@ ${chunk.substring(0, 8000)}
     if (status) status.textContent = '正在获取 The Guardian 新闻...';
     
     try {
-      const settings = await this.getSettings();
       const PROXY_BASE_URL = settings.proxyUrl;
       const apiUrl = `${PROXY_BASE_URL}/api/guardian/rss?category=${this.guardianCategory}`;
       
@@ -1946,6 +1958,13 @@ ${chunk.substring(0, 8000)}
   
   // 获取 NPR 新闻
   async fetchNPRNews() {
+    // 检查代理服务器配置
+    const settings = await this.getSettings();
+    if (!settings.proxyUrl) {
+      alert('请先配置代理服务器地址\n\n请前往：设置 → 代理服务器地址');
+      return;
+    }
+    
     if (this.fetchedNPRFeeds.length === 0) {
       this.loadNPRHistory();
     }
@@ -1962,7 +1981,6 @@ ${chunk.substring(0, 8000)}
     if (status) status.textContent = '正在获取 NPR 新闻...';
     
     try {
-      const settings = await this.getSettings();
       const PROXY_BASE_URL = settings.proxyUrl;
       const apiUrl = `${PROXY_BASE_URL}/api/npr/rss?category=${this.nprCategory}`;
       
@@ -2358,6 +2376,13 @@ ${chunk.substring(0, 8000)}
   
   // 从 ZDF Heute 获取新闻
   async fetchZDFNews() {
+    // 检查代理服务器配置
+    const settings = await this.getSettings();
+    if (!settings.proxyUrl) {
+      alert('请先配置代理服务器地址\n\n请前往：设置 → 代理服务器地址');
+      return;
+    }
+    
     // 确保历史记录已加加载
     if (this.fetchedZDFFeeds.length === 0) {
       this.loadZDFHistory();
@@ -2370,7 +2395,6 @@ ${chunk.substring(0, 8000)}
     const contentDiv = document.getElementById('zdf-content');
     
     try {
-      const settings = await this.getSettings();
       const PROXY_BASE_URL = settings.proxyUrl;
       
       btn.disabled = true;
@@ -2571,6 +2595,13 @@ ${chunk.substring(0, 8000)}
   
   // 从朝日新聞获取新闻
   async fetchAsahiNews() {
+    // 检查代理服务器配置
+    const settings = await this.getSettings();
+    if (!settings.proxyUrl) {
+      alert('请先配置代理服务器地址\n\n请前往：设置 → 代理服务器地址');
+      return;
+    }
+    
     if (this.fetchedAsahiFeeds.length === 0) {
       this.loadAsahiHistory();
     }
@@ -2587,7 +2618,6 @@ ${chunk.substring(0, 8000)}
     if (status) status.textContent = '正在获取朝日新聞...';
     
     try {
-      const settings = await this.getSettings();
       const PROXY_BASE_URL = settings.proxyUrl;
       const apiUrl = `${PROXY_BASE_URL}/api/asahi/rss`;
       
